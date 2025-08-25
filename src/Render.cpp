@@ -3,6 +3,7 @@
 #include <iostream>
 #include <algorithm>
 #include <limits>
+#include <chrono>
 
 #include <cmath>
 #include <glm.hpp>
@@ -24,10 +25,17 @@ double radians_to_degrees(double radians)
 Render::Render(int width, int height)
     : _width(width), _height(height), _frameBuffer(width * height * 4, 255), _depthBuffer(width * height, std::numeric_limits<float>::max())
 {
+    _startTime = std::chrono::steady_clock::now();
 }
 
 Render::~Render()
 {
+}
+
+void Render::initVertexArray(std::vector<float> &&vertexArray, std::vector<unsigned int> vertexIndexArray)
+{
+    _vertexArray = std::move(vertexArray);
+    _vertexIndexArray = std::move(vertexIndexArray);
 }
 
 void Render::clear()
@@ -53,13 +61,6 @@ void Render::testRender()
     d += 0.1;
 }
 
-// 顶点
-std::vector<float> vertexArray{
-    // pos         //color
-    -1.f, 0, 0, 1.f, 0, 0, 1.f, // left
-    1.f, 0, 0, 0.f, 1, 0, 1.f,  // right
-    0.f, 1, 0, 0.f, 0, 1, 1.f   // top
-};
 // 每个顶点个数大小
 int vertexSize = 3;
 // 每个顶点个数大小
@@ -175,16 +176,29 @@ void calculateBoundingBox(const glm::vec2 &v0, const glm::vec2 &v1, const glm::v
 
 void Render::frame()
 {
-    // testRender();
-
     clear();
 
-    // std::cout << "clear Buffer" << std::endl;
+    vertexArrayDeal.clear();
+    colorArrayDeal.clear();
+
+    std::chrono::duration<double> durationSeconds = std::chrono::steady_clock::now() - _startTime;
+
+    //std::cout << "durationSeconds: " << durationSeconds.count() << std::endl;
 
     // 构建矩阵
     auto modelMatrix = glm::mat4x4(1.0);
 
-    glm::vec3 eye(0.0f, 0.0f, 3.0f); // 看向-z方向
+    glm::vec3 eye(4.0f, 3.0f, 3.0f); // 看向-z方向
+    //glm::vec3 eye(2.0f, 2.0f, 10.0f); // 看向-z方向
+    eye = glm::vec3(0.0f, 0.0f, 10.0f); // 看向-z方向
+    if(1){
+        float radius = 10.0f;
+        float camX = sin(durationSeconds.count()) * radius;
+        float camZ = cos(durationSeconds.count()) * radius;
+        //float camZ = 0.f;
+        eye = glm::vec3(camX, 0.0f, camZ); // 周期运动
+    }
+    
     glm::vec3 center(0.0f, 0.0f, 0.0f);
     glm::vec3 up(0.0f, 1.0f, 0.0f);
 
@@ -202,22 +216,24 @@ void Render::frame()
     glm::mat4 mpv = projectionMatrix * viewMatrix * modelMatrix;
 
     // 处理顶点属性
-    for (size_t i = 0; i < vertexArray.size(); i += (vertexSize + colorSize))
+    for (size_t i = 0; i < _vertexArray.size(); i += (vertexSize + colorSize))
     {
-        auto vert = glm::vec3(vertexArray[i], vertexArray[i + 1], vertexArray[i + 2]);
+        auto vert = glm::vec3(_vertexArray[i], _vertexArray[i + 1], _vertexArray[i + 2]);
         vertexArrayDeal.emplace_back(mpv * glm::vec4(vert, 1.0f));
 
-        auto color = glm::vec4(vertexArray[i + 3], vertexArray[i + 4], vertexArray[i + 5], vertexArray[i + 6]);
+        auto color = glm::vec4(_vertexArray[i + 3], _vertexArray[i + 4], _vertexArray[i + 5], _vertexArray[i + 6]);
         colorArrayDeal.emplace_back(color);
     }
 
     // std::cout << "deal vertex arrtibute" << std::endl;
 
-    // 图元处理(每三个顶点为一个三角形)
-    for (size_t i = 0; i < vertexArrayDeal.size(); i += 3)
+    // 图元处理
+    int count = 0;
+    for (size_t i = 0; i < _vertexIndexArray.size(); i += 3)
     {
-        // std::cout << "Triangle: " << i << std::endl;
-        Triangle tri(vertexArrayDeal[i], vertexArrayDeal[i + 1], vertexArrayDeal[i + 2]);
+        //std::cout << "Triangle Count: " << ++count << std::endl;
+
+        Triangle tri(vertexArrayDeal[_vertexIndexArray[i]], vertexArrayDeal[_vertexIndexArray[i + 1]], vertexArrayDeal[_vertexIndexArray[i + 2]]);
 
         tri._color[0] = colorArrayDeal[i];
         tri._color[1] = colorArrayDeal[i + 1];
