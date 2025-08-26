@@ -162,7 +162,7 @@ void RenderWidget::render()
         //     break;
         // }
 
-        QThread::msleep(16);
+        //QThread::msleep(16);
     }
 }
 
