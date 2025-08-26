@@ -10,17 +10,8 @@
 #include <ext/matrix_transform.hpp>
 #include <ext/matrix_clip_space.hpp>
 
-#define M_PI 3.1415926
-
-double degrees_to_radians(double degrees)
-{
-    return degrees * (M_PI / 180.0);
-}
-
-double radians_to_degrees(double radians)
-{
-    return radians * (180.0 / M_PI);
-}
+#include "TriangleData.h"
+#include "RenderHelper.h"
 
 Render::Render(int width, int height)
     : _width(width), _height(height), _frameBuffer(width * height * 4, 255), _depthBuffer(width * height, std::numeric_limits<float>::max())
@@ -44,159 +35,35 @@ void Render::clear()
     std::fill(_depthBuffer.begin(), _depthBuffer.end(), std::numeric_limits<float>::max());
 }
 
-double d = 0;
-
-void Render::testRender()
-{
-    for (int i = 0; i < _width * _height * 4; i += 4)
-    {
-        auto v = std::sin(degrees_to_radians(d));
-        _frameBuffer[i] = 255 * std::abs(d);
-
-        _frameBuffer[i + 1] = 0;
-        _frameBuffer[i + 2] = 0;
-        _frameBuffer[i + 3] = 255;
-    }
-
-    d += 0.1;
-}
-
-// 每个顶点个数大小
+// 每个顶点大小
 int vertexSize = 3;
-// 每个顶点个数大小
+// 每个颜色大小
 int colorSize = 4;
-
-// 顶点着色器输出顶点
-std::vector<glm::vec4> vertexArrayDeal{};
-
-// 顶点着色器输出颜色
-std::vector<glm::vec4> colorArrayDeal{};
-
-class Triangle
-{
-public:
-    Triangle(glm::vec4 v1, glm::vec4 v2, glm::vec4 v3)
-    {
-        _position[0] = v1;
-        _position[1] = v2;
-        _position[2] = v3;
-    }
-    // vertex
-    glm::vec4 _position[3];
-
-    // color
-    glm::vec4 _color[3]{};
-
-    // texture
-    glm::vec2 _uv[3]{};
-
-    // ndc_position
-    glm::vec3 _ndc_position[3]{};
-
-    // screen_position
-    glm::vec2 _screen_position[3]{};
-};
-
-// 使用OpenGL默认深度范围 [0, 1]
-const float depth_min = 0.0f;
-const float depth_max = 1.0f;
-
-// 边界函数法​​（叉乘计算面积）
-float edgeFunc(glm::vec2 a, glm::vec2 b, int x, int y)
-{
-    return (b.x - a.x) * (y - a.y) - (b.y - a.y) * (x - a.x);
-}
-
-// 重心坐标法​
-glm::vec3 barycentric(glm::vec2 v0, glm::vec2 v1, glm::vec2 v2, int x, int y)
-{
-    float area = edgeFunc(v0, v1, v2.x, v2.y);
-    float w0 = edgeFunc(v1, v2, x, y) / area;
-    float w1 = edgeFunc(v2, v0, x, y) / area;
-    float w2 = 1 - w0 - w1;
-    return glm::vec3(w0, w1, w2);
-}
-
-// 等价于barycentric
-glm::vec3 calculateBarycentric(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 p)
-{
-    // 计算三角形面积（使用叉积）
-    glm::vec2 ab = b - a;
-    glm::vec2 ac = c - a;
-    glm::vec2 ap = p - a;
-
-    float area_abc = ab.x * ac.y - ab.y * ac.x; // 2倍三角形面积
-
-    // if (std::abs(area_abc) < 1e-6) {
-    //     // 三角形面积为零，返回无效的重心坐标
-    //     return glm::vec3(-1.0f, -1.0f, -1.0f);
-    // }
-
-    // 计算子三角形面积
-    glm::vec2 bp = p - b;
-    glm::vec2 cp = p - c;
-
-    // PBC三角形的面积（2倍）
-    float area_pbc = (b.x - p.x) * (c.y - p.y) - (b.y - p.y) * (c.x - p.x);
-    // PCA三角形的面积（2倍）
-    float area_pca = (c.x - p.x) * (a.y - p.y) - (c.y - p.y) * (a.x - p.x);
-
-    // 计算重心坐标
-    float alpha = area_pbc / area_abc;
-    float beta = area_pca / area_abc;
-    float gamma = 1.0f - alpha - beta;
-
-    return glm::vec3(alpha, beta, gamma);
-}
-
-void calculateBoundingBox(const glm::vec2 &v0, const glm::vec2 &v1, const glm::vec2 &v2,
-                          int &minX, int &maxX, int &minY, int &maxY,
-                          int width, int height)
-{
-    // 获取最小/最大X值
-    float fminX = std::min({v0.x, v1.x, v2.x});
-    float fmaxX = std::max({v0.x, v1.x, v2.x});
-
-    // 获取最小/最大Y值
-    float fminY = std::min({v0.y, v1.y, v2.y});
-    float fmaxY = std::max({v0.y, v1.y, v2.y});
-
-    // 转换为整数并夹紧到屏幕范围
-    minX = static_cast<int>(std::floor(fminX));
-    maxX = static_cast<int>(std::ceil(fmaxX));
-    minY = static_cast<int>(std::floor(fminY));
-    maxY = static_cast<int>(std::ceil(fmaxY));
-
-    // 确保在屏幕范围内
-    minX = std::max(0, minX);
-    maxX = std::min(width - 1, maxX);
-    minY = std::max(0, minY);
-    maxY = std::min(height - 1, maxY);
-}
 
 void Render::frame()
 {
+    // 清理颜色和深度缓冲区
     clear();
 
-    vertexArrayDeal.clear();
-    colorArrayDeal.clear();
+    // 顶点着色器输出顶点
+    std::vector<glm::vec4> vertexArrayDeal{};
+
+    // 顶点着色器输出颜色
+    std::vector<glm::vec4> colorArrayDeal{};
 
     std::chrono::duration<double> durationSeconds = std::chrono::steady_clock::now() - _startTime;
-
-    //std::cout << "durationSeconds: " << durationSeconds.count() << std::endl;
 
     // 构建矩阵
     auto modelMatrix = glm::mat4x4(1.0);
 
     glm::vec3 eye(4.0f, 3.0f, 3.0f); // 看向-z方向
     //glm::vec3 eye(2.0f, 2.0f, 10.0f); // 看向-z方向
-    eye = glm::vec3(0.0f, 0.0f, 10.0f); // 看向-z方向
+    //eye = glm::vec3(0.0f, 0.0f, 10.0f); // 看向-z方向
     if(1){
         float radius = 10.0f;
         float camX = sin(durationSeconds.count()) * radius;
         float camZ = cos(durationSeconds.count()) * radius;
-        //float camZ = 0.f;
-        eye = glm::vec3(camX, 0.0f, camZ); // 周期运动
+        eye = glm::vec3(camX, 2.0f, camZ); // 周期运动
     }
     
     glm::vec3 center(0.0f, 0.0f, 0.0f);
@@ -225,19 +92,17 @@ void Render::frame()
         colorArrayDeal.emplace_back(color);
     }
 
-    // std::cout << "deal vertex arrtibute" << std::endl;
-
     // 图元处理
-    int count = 0;
+    // int count = 0;
     for (size_t i = 0; i < _vertexIndexArray.size(); i += 3)
     {
         //std::cout << "Triangle Count: " << ++count << std::endl;
 
         Triangle tri(vertexArrayDeal[_vertexIndexArray[i]], vertexArrayDeal[_vertexIndexArray[i + 1]], vertexArrayDeal[_vertexIndexArray[i + 2]]);
 
-        tri._color[0] = colorArrayDeal[i];
-        tri._color[1] = colorArrayDeal[i + 1];
-        tri._color[2] = colorArrayDeal[i + 2];
+        tri._color[0] = colorArrayDeal[_vertexIndexArray[i]];
+        tri._color[1] = colorArrayDeal[_vertexIndexArray[i + 1]];
+        tri._color[2] = colorArrayDeal[_vertexIndexArray[i + 2]];
 
         // 裁剪视锥体(先省略)
 

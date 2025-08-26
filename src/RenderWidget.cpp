@@ -148,16 +148,21 @@ RenderWidget::~RenderWidget()
 
 void RenderWidget::render()
 {
+    int frameCount = 0;
     while (true)
     {
         QApplication::processEvents(); // 处理ui事件
         _render->frame();
         update();
-        //repaint();
+        
+        //_displayImage.save(QString("test-%1.png").arg(frameCount));
+        // frameCount++;
+        // if (frameCount > 10)
+        // {
+        //     break;
+        // }
 
-        // break;
-
-        QThread::msleep(100);
+        QThread::msleep(16);
     }
 }
 
