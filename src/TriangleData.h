@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <array>
+
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
@@ -17,19 +19,25 @@ public:
         _position[2] = v3;
     }
     // vertex
-    glm::vec4 _position[3];
-
-    // color
-    glm::vec4 _color[3]{};
-
-    // texture
-    glm::vec2 _uv[3]{};
+    std::array<glm::vec4, 3> _position{};
 
     // ndc_position
-    glm::vec3 _ndc_position[3]{};
+    std::array<glm::vec3, 3> _ndc_position{};
 
     // screen_position
-    glm::vec2 _screen_position[3]{};
+    std::array<glm::vec2, 3> _screen_position{};
+
+    // color
+    bool _hasColor = false;
+    std::array<glm::vec4, 3> _color{};
+
+    // texture
+    bool _hasUV = false;
+    std::array<glm::vec2, 3> _uv{};
+
+    // normal
+    bool _hasNormal = false;
+    std::array<glm::vec3, 3> _normal{};
 };
 
 #endif // TRIANGLE_DATA_H

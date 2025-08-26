@@ -3,8 +3,12 @@
 
 #pragma once
 
+#include <memory>
 #include <vector>
 #include <chrono>
+
+//class Texture;
+#include "Texture.h"
 
 class Render
 {
@@ -13,6 +17,12 @@ public:
     ~Render();
 
     void initVertexArray(std::vector<float> &&vertexArray, std::vector<unsigned int> vertexIndexArray);
+
+    void setTexture(std::shared_ptr<Texture> texture);
+
+    void setLayout(int vertexLayout, int vertexSize, int colorLayout, int colorSize, int uvLayout, int uvSize);
+
+    //void setWrapMode(Texture::WrapMode wrapMode);
 
     void clear();
 
@@ -45,6 +55,20 @@ private:
 
     // 顶点索引数组
     std::vector<unsigned int> _vertexIndexArray;
+
+    std::shared_ptr<Texture> _texture;
+
+    // 每个顶点大小
+    int _vertexLayout = 0;
+    int _vertexSize = 3;
+
+    // 每个颜色大小
+    int _colorLayout = 0;
+    int _colorSize = 4;
+
+    // 每个uv大小
+    int _uvSize = 2;
+    int _uvLayout = 0;
 };
 
 #endif // RENDER_H

@@ -50,6 +50,47 @@ void generateColoredCube(std::vector<float> &vertices, std::vector<unsigned int>
         {3, 2, 6, 7}  // 上面
     };
 
+    // 每个面的法线方向
+    const float face_normals[6][3] = {
+        {0.0f, 0.0f, -1.0f}, // 后面
+        {0.0f, 0.0f, 1.0f},  // 前面
+        {-1.0f, 0.0f, 0.0f}, // 左面
+        {1.0f, 0.0f, 0.0f},  // 右面
+        {0.0f, -1.0f, 0.0f}, // 下面
+        {0.0f, 1.0f, 0.0f}   // 上面
+    };
+
+    // 每个面的纹理坐标 (UV)
+    const float face_uvs[4][2] = {
+        {0.0f, 0.0f}, // 左下
+        {1.0f, 0.0f}, // 右下
+        {1.0f, 1.0f}, // 右上
+        {0.0f, 1.0f}  // 左上
+    };
+
+    // 生成纹理坐标 (UV) 数据
+    // 每个面有4个顶点，每个顶点有2个UV坐标
+    // for (int face = 0; face < 6; face++)
+    // {
+    //     for (int vertex = 0; vertex < 4; vertex++)
+    //     {
+    //         uvs.push_back(face_uvs[vertex][0]);
+    //         uvs.push_back(face_uvs[vertex][1]);
+    //     }
+    // }
+
+    // // 生成法线数据
+    // // 每个面有4个顶点，每个顶点使用相同的法线（面的法线）
+    // for (int face = 0; face < 6; face++)
+    // {
+    //     for (int vertex = 0; vertex < 4; vertex++)
+    //     {
+    //         normals.push_back(face_normals[face][0]);
+    //         normals.push_back(face_normals[face][1]);
+    //         normals.push_back(face_normals[face][2]);
+    //     }
+    // }
+
     // 清空并准备容器
     vertices.clear();
     indices.clear();
@@ -118,28 +159,35 @@ RenderWidget::RenderWidget(QWidget *parent)
     setWindowTitle("RenderWidget");
     setFixedSize(_render->_width, _render->_height);
 
-    #if 0
+#if 0
+    // 渲染一个正方形
     std::vector<float> vertexArray{
-        // pos         //color
-        -1.f, 0, 0, 1.f, 0, 0, 1.f, // left button
-        1.f, 0, 0, 0.f, 1, 0, 1.f,  // right button
-        1.f, 1, 0, 0.f, 0, 1, 1.f,  // right top
-        -1.f, 1, 0, 0.f, 0, 1, 1.f  // left top
+        // pos         //color              // uv
+        -1.f, 0, 0,     1.f, 0, 0, 1.f,     0, 0, // left button
+        1.f, 0, 0,      0.f, 1, 0, 1.f,     1, 0, // right button
+        1.f, 1, 0,     0.f, 0, 1, 1.f,      1, 1, // right top
+        -1.f, 1, 0,     0.f, 0, 1, 1.f,     0, 1 // left top
     };
 
-    std::vector<int> vertexIndexArray{
+    std::vector<unsigned int> vertexIndexArray{
         0, 1, 2,
         0, 2, 3};
 
-    #else
+    _render->initVertexArray(std::move(vertexArray), std::move(vertexIndexArray));
+    _render->setTexture(std::make_shared<Texture>("textures/container.jpg"));
+    _render->setLayout(0, 3, 1, 4, 2, 2);
+
+#else
+    // 渲染一个正方体
     std::vector<float> vertexArray;
     std::vector<unsigned int> vertexIndexArray;
     generateColoredCube(vertexArray, vertexIndexArray);
     printVertices(vertexArray);
     printIndices(vertexIndexArray);
-    #endif
 
     _render->initVertexArray(std::move(vertexArray), std::move(vertexIndexArray));
+    _render->setLayout(0, 3, 1, 4, 2, 0);
+#endif
 }
 
 RenderWidget::~RenderWidget()
@@ -154,7 +202,7 @@ void RenderWidget::render()
         QApplication::processEvents(); // 处理ui事件
         _render->frame();
         update();
-        
+
         //_displayImage.save(QString("test-%1.png").arg(frameCount));
         // frameCount++;
         // if (frameCount > 10)
@@ -162,7 +210,7 @@ void RenderWidget::render()
         //     break;
         // }
 
-        //QThread::msleep(16);
+        // QThread::msleep(16);
     }
 }
 

@@ -11,6 +11,7 @@
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
 
+#include "ColorBlend.h"
 #include "TriangleData.h"
 #include "RenderHelper.h"
 
@@ -30,16 +31,26 @@ void Render::initVertexArray(std::vector<float> &&vertexArray, std::vector<unsig
     _vertexIndexArray = std::move(vertexIndexArray);
 }
 
+void Render::setTexture(std::shared_ptr<Texture> texture)
+{
+    _texture = texture;
+}
+
+void Render::setLayout(int vertexLayout, int vertexSize, int colorLayout, int colorSize, int uvLayout, int uvSize)
+{
+    _vertexLayout = vertexLayout;
+    _vertexSize = vertexSize;
+    _colorLayout = colorLayout;
+    _colorSize = colorSize;
+    _uvLayout = uvLayout;
+    _uvSize = uvSize;
+}
+
 void Render::clear()
 {
     std::fill(_frameBuffer.begin(), _frameBuffer.end(), 255);
     std::fill(_depthBuffer.begin(), _depthBuffer.end(), std::numeric_limits<float>::max());
 }
-
-// 每个顶点大小
-int vertexSize = 3;
-// 每个颜色大小
-int colorSize = 4;
 
 void Render::frame()
 {
@@ -52,6 +63,9 @@ void Render::frame()
     // 顶点着色器输出颜色
     std::vector<glm::vec4> colorArrayDeal{};
 
+    // 顶点着色器输出uv
+    std::vector<glm::vec2> uvArrayDeal{};
+
     std::chrono::duration<double> durationSeconds = std::chrono::steady_clock::now() - _startTime;
 
     // 构建矩阵
@@ -62,10 +76,11 @@ void Render::frame()
     // eye = glm::vec3(0.0f, 0.0f, 10.0f); // 看向-z方向
     if (1)
     {
-        float radius = 10.0f;
+        float radius = 5.0f;
         float camX = sin(durationSeconds.count()) * radius;
         float camZ = cos(durationSeconds.count()) * radius;
-        eye = glm::vec3(camX, 2.0f, camZ); // 周期运动
+        // eye = glm::vec3(camX, 2.0f, camZ); // 周期运动
+        eye = glm::vec3(camX, 0.0f, camZ); // 周期运动
     }
 
     glm::vec3 center(0.0f, 0.0f, 0.0f);
@@ -84,16 +99,6 @@ void Render::frame()
 
     glm::mat4 mpv = projectionMatrix * viewMatrix * modelMatrix;
 
-    // 处理顶点属性
-    for (size_t i = 0; i < _vertexArray.size(); i += (vertexSize + colorSize))
-    {
-        auto vert = glm::vec3(_vertexArray[i], _vertexArray[i + 1], _vertexArray[i + 2]);
-        vertexArrayDeal.emplace_back(mpv * glm::vec4(vert, 1.0f));
-
-        auto color = glm::vec4(_vertexArray[i + 3], _vertexArray[i + 4], _vertexArray[i + 5], _vertexArray[i + 6]);
-        colorArrayDeal.emplace_back(color);
-    }
-
     // MSAA多重采样
     constexpr int msaaSampleCount = 4; // 4x4 多重采样
     // 采样偏移(这是一个旋转的网格采样（Rotated grid），它并不是对称的，同样还有其他几个采样方式：网格(Grid)，网格采样时对称的，但是效果不好、随机（Random）、抖动（Jittered）)
@@ -111,14 +116,49 @@ void Render::frame()
     std::vector<std::array<glm::vec4, msaaSampleCount>> msaaColorBuffer(_width * _height,
                                                                         {glm::vec4(0.0f), glm::vec4(0.0f), glm::vec4(0.0f), glm::vec4(0.0f)});
 
+    // 处理顶点属性
+    auto stride = _vertexSize + _colorSize + _uvSize;
+    for (size_t i = 0; i < _vertexArray.size(); i += stride)
+    {
+        auto vert = glm::vec3(_vertexArray[i], _vertexArray[i + 1], _vertexArray[i + 2]);
+        vertexArrayDeal.emplace_back(mpv * glm::vec4(vert, 1.0f));
+
+        auto color = glm::vec4(_vertexArray[i + 3], _vertexArray[i + 4], _vertexArray[i + 5], _vertexArray[i + 6]);
+        colorArrayDeal.emplace_back(color);
+
+        if (_uvSize != 0)
+        {
+            auto uv = glm::vec2(_vertexArray[i + 7], _vertexArray[i + 8]);
+            uvArrayDeal.emplace_back(uv);
+        }
+
+        // auto normal = glm::vec3(_vertexArray[i + 9], _vertexArray[i + 10], _vertexArray[i + 11]);
+        // normalArrayDeal.emplace_back(normal);
+    }
+
     // 图元处理
     for (size_t i = 0; i < _vertexIndexArray.size(); i += 3)
     {
-        Triangle tri(vertexArrayDeal[_vertexIndexArray[i]], vertexArrayDeal[_vertexIndexArray[i + 1]], vertexArrayDeal[_vertexIndexArray[i + 2]]);
+        Triangle tri(
+            vertexArrayDeal[_vertexIndexArray[i]],
+            vertexArrayDeal[_vertexIndexArray[i + 1]],
+            vertexArrayDeal[_vertexIndexArray[i + 2]]);
 
-        tri._color[0] = colorArrayDeal[_vertexIndexArray[i]];
-        tri._color[1] = colorArrayDeal[_vertexIndexArray[i + 1]];
-        tri._color[2] = colorArrayDeal[_vertexIndexArray[i + 2]];
+        if (!colorArrayDeal.empty())
+        {
+            tri._hasColor = true;
+            tri._color[0] = colorArrayDeal[_vertexIndexArray[i]];
+            tri._color[1] = colorArrayDeal[_vertexIndexArray[i + 1]];
+            tri._color[2] = colorArrayDeal[_vertexIndexArray[i + 2]];
+        }
+
+        if (!uvArrayDeal.empty())
+        {
+            tri._hasUV = true;
+            tri._uv[0] = uvArrayDeal[_vertexIndexArray[i]];
+            tri._uv[1] = uvArrayDeal[_vertexIndexArray[i + 1]];
+            tri._uv[2] = uvArrayDeal[_vertexIndexArray[i + 2]];
+        }
 
         // 裁剪视锥体(先省略)
 
@@ -211,12 +251,40 @@ void Render::frame()
                     // msaa只插值中心像素点的颜色，然后将颜色复制给被三角形覆盖后的采样点
                     glm::vec3 weights = barycentric(tri._screen_position[0], tri._screen_position[1], tri._screen_position[2], x + 0.5, y + 0.5);
                     float interpolated_w = 1.0 / (weights.x * w0_inv + weights.y * w1_inv + weights.z * w2_inv);
-                    // Color color = fragmentShader(uv);
-                    glm::vec4 color =
-                        (weights.x * (tri._color[0] * w0_inv) +
-                         weights.y * (tri._color[1] * w1_inv) +
-                         weights.z * (tri._color[2] * w2_inv)) *
-                        interpolated_w;
+
+                    glm::vec4 color = glm::vec4(0.0f);
+                    if (0)
+                    {
+                        // 平坦着色,逐顶点着色 取一个三角形任意顶点的颜色
+                        color = tri._color[0] + tri._color[1] + tri._color[2];
+                        color /= 3;
+                    }
+                    else // 逐像素着色
+                    {
+                        if (tri._hasColor)
+                        {
+                            color =
+                                (weights.x * (tri._color[0] * w0_inv) +
+                                 weights.y * (tri._color[1] * w1_inv) +
+                                 weights.z * (tri._color[2] * w2_inv)) *
+                                interpolated_w;
+                        }
+
+                        if (tri._hasUV && _texture)
+                        {
+                            glm::vec2 uv =
+                                (weights.x * (tri._uv[0] * w0_inv) +
+                                 weights.y * (tri._uv[1] * w1_inv) +
+                                 weights.z * (tri._uv[2] * w2_inv)) *
+                                interpolated_w;
+
+                            auto uvcolor = _texture->sampleBilinear(uv.x, uv.y);
+
+                            // 颜色混合
+                            // color = alphaBlend(uvcolor, color);
+                            color = mixBlend(color, uvcolor, 0.6);
+                        }
+                    }
 
                     // 写入颜色缓冲区，只更新深度测试通过的采样点
                     for (int sampleIndex = 0; sampleIndex < msaaSampleCount; sampleIndex++)
