@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include <vec2.hpp>
-#include <vec3.hpp>
-#include <vec4.hpp>
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
 
 class Triangle
 {

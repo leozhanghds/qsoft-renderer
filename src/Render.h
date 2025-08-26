@@ -6,8 +6,6 @@
 #include <vector>
 #include <chrono>
 
-#include <vec4.hpp>
-
 class Render
 {
 public:
@@ -24,22 +22,6 @@ public:
     {
         return _frameBuffer.data();
     }
-
-    // 仅测试用
-    // void testRender()
-    // {
-    //     static double d = 0;
-    //     for (int i = 0; i < _width * _height * 4; i += 4)
-    //     {
-    //         auto v = std::sin(degrees_to_radians(d));
-    //         _frameBuffer[i] = 255 * std::abs(d);
-
-    //         _frameBuffer[i + 1] = 0;
-    //         _frameBuffer[i + 2] = 0;
-    //         _frameBuffer[i + 3] = 255;
-    //     }
-    //     d += 0.1;
-    // }
 
 public:
     int _width;

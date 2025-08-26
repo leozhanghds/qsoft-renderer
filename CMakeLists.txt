@@ -27,7 +27,7 @@ file(GLOB HEADER_LIST RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*.h")
 
 add_executable(${PROJECT_NAME} ${SRC_LIST} ${HEADER_LIST})
 target_include_directories(${PROJECT_NAME} PRIVATE src)
-target_include_directories(${PROJECT_NAME} PRIVATE glm)
+target_include_directories(${PROJECT_NAME} PRIVATE include)
 
 target_link_libraries(${PROJECT_NAME}
     Qt5::Core
