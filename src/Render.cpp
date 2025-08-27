@@ -8,8 +8,6 @@
 
 #include <cmath>
 #include <glm/glm.hpp>
-#include <glm/ext/matrix_transform.hpp>
-#include <glm/ext/matrix_clip_space.hpp>
 
 #include "ColorBlend.h"
 #include "TriangleData.h"
@@ -18,7 +16,7 @@
 Render::Render(int width, int height)
     : _width(width), _height(height), _frameBuffer(width * height * 4, 255), _depthBuffer(width * height, std::numeric_limits<float>::max())
 {
-    _startTime = std::chrono::steady_clock::now();
+    _camera = std::make_shared<Camera>();
 }
 
 Render::~Render()
@@ -56,6 +54,8 @@ void Render::frame()
 {
     // 清理颜色和深度缓冲区
     clear();
+  
+    auto frameStartTime = std::chrono::steady_clock::now();
 
     // 顶点着色器输出顶点
     std::vector<glm::vec4> vertexArrayDeal{};
@@ -66,36 +66,19 @@ void Render::frame()
     // 顶点着色器输出uv
     std::vector<glm::vec2> uvArrayDeal{};
 
-    std::chrono::duration<double> durationSeconds = std::chrono::steady_clock::now() - _startTime;
-
     // 构建矩阵
     auto modelMatrix = glm::mat4x4(1.0);
 
-    glm::vec3 eye(4.0f, 3.0f, 3.0f); // 看向-z方向
-    // glm::vec3 eye(2.0f, 2.0f, 10.0f); // 看向-z方向
-    // eye = glm::vec3(0.0f, 0.0f, 10.0f); // 看向-z方向
-    if (1)
-    {
-        float radius = 5.0f;
-        float camX = sin(durationSeconds.count()) * radius;
-        float camZ = cos(durationSeconds.count()) * radius;
-        // eye = glm::vec3(camX, 2.0f, camZ); // 周期运动
-        eye = glm::vec3(camX, 0.0f, camZ); // 周期运动
-    }
-
-    glm::vec3 center(0.0f, 0.0f, 0.0f);
-    glm::vec3 up(0.0f, 1.0f, 0.0f);
+    // 相机回调
+    _camera->update(_lastFrameTime, _renderTime, _renderCount);
 
     // 创建视图矩阵
-    glm::mat4 viewMatrix = glm::lookAt(eye, center, up);
-
-    float aspectRatio = 800.0f / 600.0f;
-    float fovy = 45.0f; // z y 与viewDir的夹角
-    float nearPlane = 1.0f;
-    float farPlane = 100.0f;
+    glm::vec3 eye, center, up;
+    glm::mat4 viewMatrix = _camera->getViewMatrix(eye, center, up);
 
     // 创建透视投影矩阵
-    glm::mat4 projectionMatrix = glm::perspective(fovy, aspectRatio, nearPlane, farPlane);
+    float fov, aspect, near, far;
+    glm::mat4 projectionMatrix = _camera->getProjectionMatrix(fov, aspect, near, far);
 
     glm::mat4 mpv = projectionMatrix * viewMatrix * modelMatrix;
 
@@ -178,8 +161,23 @@ void Render::frame()
         tri._screen_position[2].x = (tri._ndc_position[2].x + 1) * (_width - 1) / 2;
         tri._screen_position[2].y = (-tri._ndc_position[2].y + 1) * (_height - 1) / 2;
 
-        // 背面剔除（先省略）
-        // if (isBackFace(tri)) continue;
+        // 正面/背面剔除 (立方体建模可能有问题，在立方体旋转时会有面确实)
+        if (0)
+        {
+            auto front = calculateFrontFace2D(tri._screen_position[0], tri._screen_position[1], tri._screen_position[2]);
+
+            // 开启背面剔除
+            if (1 && front < 0)
+            {
+                continue;
+            }
+
+            // 开启正面面剔除
+            if (0 && front > 0)
+            {
+                continue;
+            }
+        }
 
         // 光栅化（生成覆盖的像素片段）
         // 计算包围盒
@@ -234,20 +232,23 @@ void Render::frame()
                     // 转换为深度缓冲值(depthMax,depthMin可定义，znear,zfar和是-1到1)
                     float depth = z_ndc * 0.5f + 0.5f; //(z_ndc - znear) / (zfar - znear) * (depthMax - depthMin) + depthMin;
 
-                    // 深度测试，记录深度测试通过的采样点
-                    if (depth > msaaDepthBuffer[pixelIndex][sampleIndex])
+                    // 开启深度测试，记录深度测试通过的采样点
+                    if (1 && depth > msaaDepthBuffer[pixelIndex][sampleIndex])
                         continue;
 
                     isCovered = true;
                     sampleCoveredState[sampleIndex] = true;
 
-                    // 更新深度缓冲区
-                    msaaDepthBuffer[pixelIndex][sampleIndex] = depth;
+                    // 写入深度缓冲区
+                    if (1)
+                    {
+                        msaaDepthBuffer[pixelIndex][sampleIndex] = depth;
+                    }
                 }
 
+                // 调用片段着色器
                 if (isCovered)
                 {
-                    // 调用片段着色器
                     // msaa只插值中心像素点的颜色，然后将颜色复制给被三角形覆盖后的采样点
                     glm::vec3 weights = barycentric(tri._screen_position[0], tri._screen_position[1], tri._screen_position[2], x + 0.5, y + 0.5);
                     float interpolated_w = 1.0 / (weights.x * w0_inv + weights.y * w1_inv + weights.z * w2_inv);
@@ -255,9 +256,10 @@ void Render::frame()
                     glm::vec4 color = glm::vec4(0.0f);
                     if (0)
                     {
-                        // 平坦着色,逐顶点着色 取一个三角形任意顶点的颜色
-                        color = tri._color[0] + tri._color[1] + tri._color[2];
-                        color /= 3;
+                        // 平坦着色,逐顶点着色 取一个三角形任意顶点的颜色（opengl默认取三角形最后一个顶点，但是可以修改）
+                        // color = tri._color[0] + tri._color[1] + tri._color[2];
+                        // color /= 3;
+                        color = tri._color[2];
                     }
                     else // 逐像素着色
                     {
@@ -280,9 +282,7 @@ void Render::frame()
 
                             auto uvcolor = _texture->sampleBilinear(uv.x, uv.y);
 
-                            // 颜色混合
-                            // color = alphaBlend(uvcolor, color);
-                            color = mixBlend(color, uvcolor, 0.6);
+                            color = customBlend(uvcolor, color, 0.4, 0.6);
                         }
                     }
 
@@ -290,7 +290,11 @@ void Render::frame()
                     for (int sampleIndex = 0; sampleIndex < msaaSampleCount; sampleIndex++)
                     {
                         if (sampleCoveredState[sampleIndex])
-                            msaaColorBuffer[pixelIndex][sampleIndex] = color;
+                        {
+                            // 开启颜色混合
+                            auto oldColor = msaaColorBuffer[pixelIndex][sampleIndex];
+                            msaaColorBuffer[pixelIndex][sampleIndex] = alphaBlend(color, oldColor);
+                        }
                     }
                 }
             }
@@ -318,4 +322,9 @@ void Render::frame()
 
         pixelIndex++;
     }
+
+    auto frameEndTime = std::chrono::steady_clock::now();
+    _lastFrameTime = (std::chrono::duration<float>(frameEndTime - frameStartTime)).count();
+    _renderTime += _lastFrameTime;
+    _renderCount++;
 }

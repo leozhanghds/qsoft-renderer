@@ -3,12 +3,13 @@
 
 #pragma once
 
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
 #include <glm/glm.hpp>
 
-class Texture
+class Texture : public std::enable_shared_from_this<Texture>
 {
 public:
     enum class WrapMode
@@ -20,6 +21,11 @@ public:
 
     Texture(const std::string &path);
     ~Texture() = default;
+
+    std::shared_ptr<Texture> getSharedPtr()
+    {
+        return shared_from_this();
+    }
 
     glm::vec4 sample(float u, float v, WrapMode mode = WrapMode::Repeat);
 

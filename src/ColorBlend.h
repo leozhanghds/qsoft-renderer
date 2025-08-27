@@ -17,10 +17,6 @@ enum BlendFactor {
     ONE_MINUS_DST_ALPHA
 };
 
-glm::vec4 mixBlend(const glm::vec4& src, const glm::vec4& dst, float ratio) {
-    return glm::mix(src, dst, ratio);
-}
-
 // 混合函数，类似于 OpenGL 的 glBlendFunc
 glm::vec4 blend(glm::vec4 src, glm::vec4 dst, 
                 BlendFactor srcFactor, BlendFactor dstFactor) {

@@ -20,7 +20,14 @@ double radians_to_degrees(double radians)
     return radians * (180.0 / M_PI);
 }
 
-// 边界函数法​​（叉乘计算面积）
+float calculateFrontFace2D(glm::vec2 v0, glm::vec2 v1, glm::vec2 v2)
+{
+    auto n = v1 - v0;
+    auto m = v2 - v0;
+    return n.x * m.y - n.y * m.x;
+}
+
+// 边界函数法​​（vec2 叉乘计算的是平行四边形的面积）
 float edgeFunc(glm::vec2 a, glm::vec2 b, int x, int y)
 {
     return (b.x - a.x) * (y - a.y) - (b.y - a.y) * (x - a.x);

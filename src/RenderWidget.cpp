@@ -188,6 +188,19 @@ RenderWidget::RenderWidget(QWidget *parent)
     _render->initVertexArray(std::move(vertexArray), std::move(vertexIndexArray));
     _render->setLayout(0, 3, 1, 4, 2, 0);
 #endif
+
+    // 设置相机回调
+    _render->getCamera()->setUpdateCallback([this](std::shared_ptr<Camera> camera)
+                                            {
+                                                glm::vec3 eye, center, up;
+                                                camera->getViewMatrix(eye, center, up);
+
+                                                float radius = 5.0f;
+                                                float camX = sin(camera->getRenderTime()) * radius;
+                                                float camZ = cos(camera->getRenderTime()) * radius;
+                                                eye = glm::vec3(camX, 2.0f, camZ); // 周期运动
+                                                camera->setViewMatrix(eye, center, up);
+                                            });
 }
 
 RenderWidget::~RenderWidget()
@@ -202,15 +215,6 @@ void RenderWidget::render()
         QApplication::processEvents(); // 处理ui事件
         _render->frame();
         update();
-
-        //_displayImage.save(QString("test-%1.png").arg(frameCount));
-        // frameCount++;
-        // if (frameCount > 10)
-        // {
-        //     break;
-        // }
-
-        // QThread::msleep(16);
     }
 }
 

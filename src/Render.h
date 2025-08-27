@@ -7,14 +7,20 @@
 #include <vector>
 #include <chrono>
 
-//class Texture;
+// class Texture;
 #include "Texture.h"
+#include "Camera.h"
 
-class Render
+class Render : public std::enable_shared_from_this<Render>
 {
 public:
     Render(int width, int height);
     ~Render();
+
+    std::shared_ptr<Render> getSharedPtr()
+    {
+        return shared_from_this();
+    }
 
     void initVertexArray(std::vector<float> &&vertexArray, std::vector<unsigned int> vertexIndexArray);
 
@@ -22,7 +28,7 @@ public:
 
     void setLayout(int vertexLayout, int vertexSize, int colorLayout, int colorSize, int uvLayout, int uvSize);
 
-    //void setWrapMode(Texture::WrapMode wrapMode);
+    // void setWrapMode(Texture::WrapMode wrapMode);
 
     void clear();
 
@@ -33,12 +39,19 @@ public:
         return _frameBuffer.data();
     }
 
+    const std::shared_ptr<Camera> &getCamera()
+    {
+        return _camera;
+    }
+
 public:
     int _width;
     int _height;
 
 private:
-    std::chrono::time_point<std::chrono::steady_clock> _startTime;
+    float _renderTime = 0.0f;
+    size_t _renderCount = 0;
+    float _lastFrameTime = 0.0f;
 
     // 使用OpenGL默认深度范围 [0, 1]
     const float depth_min = 0.0f;
@@ -56,7 +69,11 @@ private:
     // 顶点索引数组
     std::vector<unsigned int> _vertexIndexArray;
 
+    // 纹理
     std::shared_ptr<Texture> _texture;
+
+    // 相机
+    std::shared_ptr<Camera> _camera;
 
     // 每个顶点大小
     int _vertexLayout = 0;
