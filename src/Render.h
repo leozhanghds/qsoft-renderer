@@ -6,10 +6,18 @@
 #include <memory>
 #include <vector>
 #include <chrono>
+#include <array>
 
-// class Texture;
-#include "Texture.h"
 #include "Camera.h"
+#include "Layer.h"
+
+// MSAA多重采样
+constexpr int msaaSampleCount = 4; // 4x4
+const static std::array<glm::vec2, msaaSampleCount> sampleOffsets = {
+    glm::vec2{0.375f, 0.125f},
+    glm::vec2{0.125f, 0.375f},
+    glm::vec2{0.625f, 0.875f},
+    glm::vec2{0.875f, 0.625f}};
 
 class Render : public std::enable_shared_from_this<Render>
 {
@@ -22,13 +30,7 @@ public:
         return shared_from_this();
     }
 
-    void initVertexArray(std::vector<float> &&vertexArray, std::vector<unsigned int> vertexIndexArray);
-
-    void setTexture(std::shared_ptr<Texture> texture);
-
-    void setLayout(int vertexLayout, int vertexSize, int colorLayout, int colorSize, int uvLayout, int uvSize);
-
-    // void setWrapMode(Texture::WrapMode wrapMode);
+    void addLayer(std::shared_ptr<Layer> layer);
 
     void clear();
 
@@ -42,6 +44,11 @@ public:
     const std::shared_ptr<Camera> &getCamera()
     {
         return _camera;
+    }
+
+    const float getFrameRenderTime()
+    {
+        return _lastFrameTime;
     }
 
 public:
@@ -60,32 +67,15 @@ private:
     // 颜色缓冲区
     std::vector<uint8_t> _frameBuffer;
 
-    // 深度缓冲区
-    std::vector<float> _depthBuffer;
-
-    // 顶点数组
-    std::vector<float> _vertexArray;
-
-    // 顶点索引数组
-    std::vector<unsigned int> _vertexIndexArray;
-
-    // 纹理
-    std::shared_ptr<Texture> _texture;
+    // MSAA缓冲区，记录每个像素的4个采样点的深度值和颜色
+    std::vector<std::array<float, msaaSampleCount>> _msaaDepthBuffer;
+    std::vector<std::array<glm::vec4, msaaSampleCount>> _msaaColorBuffer;
 
     // 相机
-    std::shared_ptr<Camera> _camera;
+    std::shared_ptr<Camera> _camera{nullptr};
 
-    // 每个顶点大小
-    int _vertexLayout = 0;
-    int _vertexSize = 3;
-
-    // 每个颜色大小
-    int _colorLayout = 0;
-    int _colorSize = 4;
-
-    // 每个uv大小
-    int _uvSize = 2;
-    int _uvLayout = 0;
+    // 图层
+    std::vector<std::shared_ptr<Layer>> _layers;
 };
 
 #endif // RENDER_H

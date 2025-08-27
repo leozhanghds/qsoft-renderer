@@ -1,5 +1,7 @@
 #include "RenderWidget.h"
 #include "Render.h"
+#include "Layer.h"
+#include "Texture.h"
 
 #include <iostream>
 
@@ -159,35 +161,46 @@ RenderWidget::RenderWidget(QWidget *parent)
     setWindowTitle("RenderWidget");
     setFixedSize(_render->_width, _render->_height);
 
-#if 0
-    // 渲染一个正方形
-    std::vector<float> vertexArray{
-        // pos         //color              // uv
-        -1.f, 0, 0,     1.f, 0, 0, 1.f,     0, 0, // left button
-        1.f, 0, 0,      0.f, 1, 0, 1.f,     1, 0, // right button
-        1.f, 1, 0,     0.f, 0, 1, 1.f,      1, 1, // right top
-        -1.f, 1, 0,     0.f, 0, 1, 1.f,     0, 1 // left top
-    };
+    if(1){
+        // 渲染一个正方体
+        std::vector<float> vertexArray;
+        std::vector<unsigned int> vertexIndexArray;
+        generateColoredCube(vertexArray, vertexIndexArray);
+        printVertices(vertexArray);
+        printIndices(vertexIndexArray);
 
-    std::vector<unsigned int> vertexIndexArray{
-        0, 1, 2,
-        0, 2, 3};
+        std::shared_ptr<Layer> layer = std::make_shared<Layer>();
+        layer->setVertexArray(vertexArray, vertexIndexArray);
+        layer->addVertexLayout(0, 3, 0); // 顶点
+        layer->addVertexLayout(1, 4, 3); // 颜色
+        layer->setStride(7);
+        layer->setTexture(std::make_shared<Texture>("textures/container.jpg"));
+        _render->addLayer(layer);
+    }
 
-    _render->initVertexArray(std::move(vertexArray), std::move(vertexIndexArray));
-    _render->setTexture(std::make_shared<Texture>("textures/container.jpg"));
-    _render->setLayout(0, 3, 1, 4, 2, 2);
+    if(1){
+        // 渲染一个正方形
+        std::vector<float> vertexArray{
+            // pos  //color // uv
+            -1.f, 0, 0, 1.f, 0, 0, 1.f, 0, 0, // left button
+            1.f, 0, 0, 0.f, 1, 0, 1.f, 1, 0,  // right button
+            1.f, 1, 0, 0.f, 0, 1, 1.f, 1, 1,  // right top
+            -1.f, 1, 0, 0.f, 0, 1, 1.f, 0, 1  // left top
+        };
 
-#else
-    // 渲染一个正方体
-    std::vector<float> vertexArray;
-    std::vector<unsigned int> vertexIndexArray;
-    generateColoredCube(vertexArray, vertexIndexArray);
-    printVertices(vertexArray);
-    printIndices(vertexIndexArray);
+        std::vector<unsigned int> vertexIndexArray{
+            0, 1, 2,
+            0, 2, 3};
 
-    _render->initVertexArray(std::move(vertexArray), std::move(vertexIndexArray));
-    _render->setLayout(0, 3, 1, 4, 2, 0);
-#endif
+        std::shared_ptr<Layer> layer = std::make_shared<Layer>();
+        layer->setVertexArray(std::move(vertexArray), std::move(vertexIndexArray));
+        layer->addVertexLayout(0, 3, 0); // 顶点
+        layer->addVertexLayout(1, 4, 3); // 颜色
+        layer->addVertexLayout(2, 2, 7); // uv
+        layer->setStride(9);
+        layer->setTexture(std::make_shared<Texture>("textures/container.jpg"));
+        _render->addLayer(layer);
+    }
 
     // 设置相机回调
     _render->getCamera()->setUpdateCallback([this](std::shared_ptr<Camera> camera)
@@ -199,8 +212,7 @@ RenderWidget::RenderWidget(QWidget *parent)
                                                 float camX = sin(camera->getRenderTime()) * radius;
                                                 float camZ = cos(camera->getRenderTime()) * radius;
                                                 eye = glm::vec3(camX, 2.0f, camZ); // 周期运动
-                                                camera->setViewMatrix(eye, center, up);
-                                            });
+                                                camera->setViewMatrix(eye, center, up); });
 }
 
 RenderWidget::~RenderWidget()
@@ -214,6 +226,11 @@ void RenderWidget::render()
     {
         QApplication::processEvents(); // 处理ui事件
         _render->frame();
+
+        // std::cout << "FrameRenderTime: " << _render->getFrameRenderTime() << std::endl;
+
+        // break;
+
         update();
     }
 }

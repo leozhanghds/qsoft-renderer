@@ -1,6 +1,8 @@
 #ifndef COLOR_BLEND_H
 #define COLOR_BLEND_H
 
+#pragma once
+
 #include <glm/glm.hpp>
 
 // 混合因子枚举，类似于 OpenGL 的混合因子
