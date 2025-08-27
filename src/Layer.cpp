@@ -26,7 +26,13 @@ void Layer::addVertexLayout(int layoutId, int vertexSize,/* int stride,*/ int of
     //data.stride = stride;
     data.offset = offset;
 
+    _stride += vertexSize;
     _vertexLayouts.emplace_back(data);
+}
+
+void Layer::setShader(std::shared_ptr<Shader> shader)
+{
+    _shader = shader;
 }
 
 // 纹理

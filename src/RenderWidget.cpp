@@ -3,6 +3,8 @@
 #include "Layer.h"
 #include "Texture.h"
 
+#include "SquareCubeShader.h"
+
 #include <iostream>
 
 #include <QThread>
@@ -173,12 +175,13 @@ RenderWidget::RenderWidget(QWidget *parent)
         layer->setVertexArray(vertexArray, vertexIndexArray);
         layer->addVertexLayout(0, 3, 0); // 顶点
         layer->addVertexLayout(1, 4, 3); // 颜色
-        layer->setStride(7);
+        //layer->setStride(7);
         layer->setTexture(std::make_shared<Texture>("textures/container.jpg"));
+        layer->setShader(std::make_shared<CubeShader>(layer->getLayoutCount()));
         _render->addLayer(layer);
     }
 
-    if(1){
+    if(0){
         // 渲染一个正方形
         std::vector<float> vertexArray{
             // pos  //color // uv
@@ -197,7 +200,7 @@ RenderWidget::RenderWidget(QWidget *parent)
         layer->addVertexLayout(0, 3, 0); // 顶点
         layer->addVertexLayout(1, 4, 3); // 颜色
         layer->addVertexLayout(2, 2, 7); // uv
-        layer->setStride(9);
+        //layer->setStride(9);
         layer->setTexture(std::make_shared<Texture>("textures/container.jpg"));
         _render->addLayer(layer);
     }
@@ -221,7 +224,6 @@ RenderWidget::~RenderWidget()
 
 void RenderWidget::render()
 {
-    int frameCount = 0;
     while (true)
     {
         QApplication::processEvents(); // 处理ui事件

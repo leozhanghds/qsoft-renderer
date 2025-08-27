@@ -82,7 +82,10 @@
         "array": "cpp",
         "random": "cpp",
         "regex": "cpp",
-        "fstream": "cpp"
+        "fstream": "cpp",
+        "any": "cpp",
+        "coroutine": "cpp",
+        "resumable": "cpp"
     },
     "cmake.loadCompileCommands": true,
     "cmake.copyCompileCommands": "${workspaceFolder}/build/compile_commands.json",

@@ -27,17 +27,17 @@ public:
     // screen_position
     std::array<glm::vec2, 3> _screen_position{};
 
-    // color
-    bool _hasColor = false;
-    std::array<glm::vec4, 3> _color{};
+    // // color
+    // bool _hasColor = false;
+    // std::array<glm::vec4, 3> _color{};
 
-    // texture
-    bool _hasUV = false;
-    std::array<glm::vec2, 3> _uv{};
+    // // texture
+    // bool _hasUV = false;
+    // std::array<glm::vec2, 3> _uv{};
 
-    // normal
-    bool _hasNormal = false;
-    std::array<glm::vec3, 3> _normal{};
+    // // normal
+    // bool _hasNormal = false;
+    // std::array<glm::vec3, 3> _normal{};
 };
 
 #endif // TRIANGLE_DATA_H

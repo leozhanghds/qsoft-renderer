@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "Texture.h"
+#include "Shader.h"
 
 class Layer
 {
@@ -15,7 +16,7 @@ public:
     {
         int layoutId;
         int vertexSize;
-        //int stride;
+        // int stride;
         int offset;
     };
 
@@ -30,25 +31,27 @@ public:
     void addVertexLayout(int layoutId, int vertexSize, /*int stride,*/ int offset /*int dataType == float*/);
 
     // 步长
-    void setStride(int stride) { _stride = stride; }
-    
-    int getStride() { return _stride; }
+    const int getStride() { return _stride; }
+
+    const int getLayoutCount() { return _vertexLayouts.size(); }
+
+    // 着色器
+    void setShader(std::shared_ptr<Shader> shader);
 
     // 纹理
     void setTexture(std::shared_ptr<Texture> texture);
 
     /////////////////////////////////////////////////////////////////////
 
-    // 顶点布局
     const std::vector<Data> &getVertexLayouts() { return _vertexLayouts; }
 
-    // 顶点索引数组
     const std::vector<unsigned int> &getVertexIndexArray() { return _vertexIndexArray; }
 
-    // 顶点数组
     const std::vector<float> &getVertexArray() { return _vertexArray; }
 
     const std::shared_ptr<Texture> &getTexture() { return _texture; }
+
+    const std::shared_ptr<Shader> &getShader() { return _shader; }
 
 private:
     std::vector<float> _vertexArray;
@@ -56,10 +59,12 @@ private:
 
     std::vector<Data> _vertexLayouts;
 
-    std::shared_ptr<Texture> _texture;
+    std::shared_ptr<Texture> _texture{nullptr};
+
+    std::shared_ptr<Shader> _shader{nullptr};
 
     // 步长
-    int _stride;
+    int _stride{0};
 };
 
 #endif // LAYER_H

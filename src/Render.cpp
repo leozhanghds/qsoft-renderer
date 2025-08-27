@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <limits>
 #include <chrono>
+#include <unordered_map>
 
 #include <cmath>
 #include <glm/glm.hpp>
@@ -32,7 +33,7 @@ void Render::addLayer(std::shared_ptr<Layer> layer)
 
 void Render::clear()
 {
-    //std::fill(_frameBuffer.begin(), _frameBuffer.end(), 255);
+    // std::fill(_frameBuffer.begin(), _frameBuffer.end(), 255);
     std::fill_n(_frameBuffer.data(), _frameBuffer.size(), 255);
 
     // 当成一个大的数组进行快读填充
@@ -47,14 +48,11 @@ void Render::frame()
 
     auto frameStartTime = std::chrono::steady_clock::now();
 
+    // 顶点着色器输出顶点属性
+    std::vector<std::unordered_map<std::string, std::any>> vertexShaderOutMapArray{};
+
     // 顶点着色器输出顶点
-    std::vector<glm::vec4> vertexArrayDeal{};
-
-    // 顶点着色器输出颜色
-    std::vector<glm::vec4> colorArrayDeal{};
-
-    // 顶点着色器输出uv
-    std::vector<glm::vec2> uvArrayDeal{};
+    std::vector<glm::vec4> gl_PositionArray{};
 
     // 构建矩阵
     auto modelMatrix = glm::mat4x4(1.0);
@@ -70,64 +68,79 @@ void Render::frame()
     float fov, aspect, near, far;
     glm::mat4 projectionMatrix = _camera->getProjectionMatrix(fov, aspect, near, far);
 
-    glm::mat4 mpv = projectionMatrix * viewMatrix * modelMatrix;
+    glm::mat4 viewProjectionMatrix = projectionMatrix * viewMatrix;
+    glm::mat4 viewProjectionModelMatrix = viewProjectionMatrix * modelMatrix; // projectionMatrix * viewMatrix * modelMatrix;
 
     // 处理顶点属性
     for (auto &layer : _layers)
     {
+        auto shader = layer->getShader();
+        if (!shader)
+        {
+            continue;
+        }
+
+        shader->setUniform("viewMatrix", std::any(viewMatrix));
+        shader->setUniform("projectionMatrix", std::any(projectionMatrix));
+        shader->setUniform("viewProjectionMatrix", std::any(viewProjectionMatrix));
+        shader->setUniform("viewProjectionModelMatrix", std::any(viewProjectionModelMatrix));
+
         auto &vertexArray = layer->getVertexArray();
         auto &vertexIndexArray = layer->getVertexIndexArray();
         auto &vertexLayouts = layer->getVertexLayouts();
         auto stride = layer->getStride();
+        auto layoutCount = vertexLayouts.size();
+
+        auto &vertexAttrArrayInput = shader->getVertexAttrArrayInput();
 
         auto texture = layer->getTexture();
 
+        auto ptr = vertexArray.data();
+
+        // 每一组stride组成一组顶点属性（pos、color、uv、normal....等）
         for (size_t i = 0; i < vertexArray.size(); i += stride)
         {
             for (auto &layoutData : vertexLayouts)
             {
                 auto baseOffset = i + layoutData.offset;
-                if (layoutData.layoutId == 0)
-                {
-                    auto vert = glm::vec3(vertexArray[baseOffset], vertexArray[baseOffset + 1], vertexArray[baseOffset + 2]);
-                    vertexArrayDeal.emplace_back(mpv * glm::vec4(vert, 1.0f));
-                }
-                if (layoutData.layoutId == 1)
-                {
-                    auto color = glm::vec4(vertexArray[baseOffset], vertexArray[baseOffset + 1], vertexArray[baseOffset + 2], vertexArray[baseOffset + 3]);
-                    colorArrayDeal.emplace_back(color);
-                }
-                if (layoutData.layoutId == 2)
-                {
-                    auto uv = glm::vec2(vertexArray[baseOffset], vertexArray[baseOffset + 1]);
-                    uvArrayDeal.emplace_back(uv);
-                }
+                auto dataSize = layoutData.vertexSize;
+
+                // 根据索引获取当前属性的数组
+                auto &vertexAttrArrayLayout = vertexAttrArrayInput[layoutData.layoutId];
+
+                // 拷贝属性
+                std::memcpy(vertexAttrArrayLayout.data(), ptr + baseOffset, dataSize * sizeof(float));
             }
+
+            // 调用顶点着色器
+            glm::vec4 gl_Position;
+            auto outMap = shader->vertexShader(gl_Position);
+            gl_PositionArray.emplace_back(gl_Position);
+            vertexShaderOutMapArray.emplace_back(outMap);
+        }
+
+        // 先获取所有的顶点着色器输出属性名称列表
+        std::vector<std::string> vertexShaderOutMapKays{};
+        if (!vertexShaderOutMapArray.empty())
+        {
+            auto &m = vertexShaderOutMapArray[0];
+            vertexShaderOutMapKays.reserve(m.size());
+            std::transform(m.begin(), m.end(), std::back_inserter(vertexShaderOutMapKays),
+                           [](const auto &pair)
+                           { return pair.first; });
         }
 
         // 图元处理
-        for (size_t i = 0; i < vertexIndexArray.size(); i += 3)
+        for (size_t vertexIndex = 0; vertexIndex < vertexIndexArray.size(); vertexIndex += 3)
         {
             Triangle tri(
-                vertexArrayDeal[vertexIndexArray[i]],
-                vertexArrayDeal[vertexIndexArray[i + 1]],
-                vertexArrayDeal[vertexIndexArray[i + 2]]);
+                gl_PositionArray[vertexIndexArray[vertexIndex]],
+                gl_PositionArray[vertexIndexArray[vertexIndex + 1]],
+                gl_PositionArray[vertexIndexArray[vertexIndex + 2]]);
 
-            if (!colorArrayDeal.empty())
-            {
-                tri._hasColor = true;
-                tri._color[0] = colorArrayDeal[vertexIndexArray[i]];
-                tri._color[1] = colorArrayDeal[vertexIndexArray[i + 1]];
-                tri._color[2] = colorArrayDeal[vertexIndexArray[i + 2]];
-            }
-
-            if (!uvArrayDeal.empty())
-            {
-                tri._hasUV = true;
-                tri._uv[0] = uvArrayDeal[vertexIndexArray[i]];
-                tri._uv[1] = uvArrayDeal[vertexIndexArray[i + 1]];
-                tri._uv[2] = uvArrayDeal[vertexIndexArray[i + 2]];
-            }
+            auto &vsOutMap1 = vertexShaderOutMapArray[vertexIndexArray[vertexIndex]];
+            auto &vsOutMap2 = vertexShaderOutMapArray[vertexIndexArray[vertexIndex + 1]];
+            auto &vsOutMap3 = vertexShaderOutMapArray[vertexIndexArray[vertexIndex + 2]];
 
             // 裁剪视锥体(先省略)
 
@@ -232,7 +245,7 @@ void Render::frame()
                         }
                     }
 
-                    // 调用片段着色器
+                    // 确认写入颜色缓冲区
                     if (isCovered)
                     {
                         // msaa只插值中心像素点的颜色，然后将颜色复制给被三角形覆盖后的采样点
@@ -240,6 +253,21 @@ void Render::frame()
                         float interpolated_w = 1.0 / (weights.x * w0_inv + weights.y * w1_inv + weights.z * w2_inv);
 
                         glm::vec4 color = glm::vec4(0.0f);
+                        for (auto &key : vertexShaderOutMapKays)
+                        {
+                            auto v1 = std::any_cast<glm::vec4>(vsOutMap1[key]);
+                            auto v2 = std::any_cast<glm::vec4>(vsOutMap2[key]);
+                            auto v3 = std::any_cast<glm::vec4>(vsOutMap3[key]);
+
+                            color =
+                                (weights.x * (v1 * w0_inv) +
+                                 weights.y * (v2 * w1_inv) +
+                                 weights.z * (v3 * w2_inv)) *
+                                interpolated_w;
+
+                            // color = v3;
+                        }
+#if 0
                         if (0)
                         {
                             // 平坦着色,逐顶点着色 取一个三角形任意顶点的颜色（opengl默认取三角形最后一个顶点，但是可以修改）
@@ -266,12 +294,12 @@ void Render::frame()
                                      weights.z * (tri._uv[2] * w2_inv)) *
                                     interpolated_w;
 
-                                //auto uvcolor = texture->sampleBilinear(uv.x, uv.y);
-                                //color = customBlend(uvcolor, color, 0.4, 0.6);
+                                // auto uvcolor = texture->sampleBilinear(uv.x, uv.y);
+                                // color = customBlend(uvcolor, color, 0.4, 0.6);
                                 color = texture->sampleBilinear(uv.x, uv.y);
                             }
                         }
-
+#endif
                         // 写入颜色缓冲区，只更新深度测试通过的采样点
                         for (int sampleIndex = 0; sampleIndex < msaaSampleCount; sampleIndex++)
                         {
