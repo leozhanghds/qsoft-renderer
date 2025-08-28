@@ -13,16 +13,14 @@
 #include <glm/glm.hpp>
 #include <span>
 
-// 定义最大的顶点属性输入输出字节数(第1个字节表示大小, 第2个字节0表示插值，1表示不插值，后面每个属性最大是vec4)
+// 定义最大的顶点属性输入输出字节数(第1个表示大小, 第2个0表示插值，1表示不插值，后面每个属性最大是vec4)
 // constexpr int MAX_VERTEX_ATTR_SIZE = sizeof(uint8_t) + sizeof(uint8_t) + sizeof(glm::vec4);
-constexpr int MAX_VERTEX_ATTR_SIZE = sizeof(float) + sizeof(float) + sizeof(glm::vec4);
+// constexpr int MAX_VERTEX_ATTR_SIZE = sizeof(float) + sizeof(float) + sizeof(glm::vec4);
+constexpr int MAX_VERTEX_ATTR_SIZE = (sizeof(float) + sizeof(float) + sizeof(glm::vec4)) / sizeof(float);//更换为float的数量
 // 顶点着色器属性输出数量限制
 constexpr int MAX_VERTEX_OUTPUT_COMPONENTS = 16;
 // 顶点着色器属性输出内存大小
-constexpr int MAX_VERTEX_OUTPUT_MEMORY_SIZE = MAX_VERTEX_ATTR_SIZE * MAX_VERTEX_OUTPUT_COMPONENTS;
-
-// constexpr int MAX_FRAGMENT_OUTPUT_MEMORY_SIZE = sizeof(glm::vec4);//片元着色器属性输出内存大小
-// constexpr int GL_MAX_FRAGMENT_OUTPUT_COMPONENTS = 4;                    //片元着色器属性输出数量限制
+constexpr int MAX_VERTEX_OUTPUT_MEMORY_SIZE = MAX_VERTEX_ATTR_SIZE * MAX_VERTEX_OUTPUT_COMPONENTS;//更换为有多少个float
 
 class Shader : public std::enable_shared_from_this<Shader>
 {
@@ -111,7 +109,6 @@ public:
     template <typename In>
     const In &flayoutIn(int location)
     {
-        // return *reinterpret_cast<const In *>(_fragmentAttrArrayInput[location].data());
         int offset = location * MAX_VERTEX_ATTR_SIZE;
         auto dataSize = static_cast<int>(_fragmentAttrArrayInput[offset]);
         if (dataSize == 0)
@@ -121,9 +118,8 @@ public:
         }
         Shader::Interpolation interpolation = (Shader::Interpolation)_fragmentAttrArrayInput[offset + 1];
 
-        const glm::vec4 value = *reinterpret_cast<const glm::vec4 *>(
-            reinterpret_cast<const unsigned char *>(_fragmentAttrArrayInput.data()) + offset + 2 * sizeof(float)); // 2 表示跳过前面两个float
-
+        const glm::vec4 value = *reinterpret_cast<const glm::vec4 *>(_fragmentAttrArrayInput.data() + offset + 2);// 2 表示跳过前面两个float
+        
         return value;
     }
 

@@ -116,32 +116,18 @@ void Render::frame()
             {
                 auto baseOffset = i + layoutData.offset;
                 auto dataSize = layoutData.vertexSize;
-                shader->setVertexAttrArrayInput(layoutData.layoutId, std::span<const float>(ptr + baseOffset, dataSize * sizeof(float)));
+                shader->setVertexAttrArrayInput(layoutData.layoutId, std::span<const float>(ptr + baseOffset, dataSize));
             }
 
             // 调用顶点着色器
             auto outputIndex = processLayerVertexSize + currentVertexIndex;
             shader->setVertexAttrArrayOutput(std::span<float>(vertexShaderOutArray[outputIndex].data(), MAX_VERTEX_OUTPUT_MEMORY_SIZE));
-            
+
             auto outMap = shader->vertexShader(gl_Position);
             gl_PositionArray[outputIndex] = gl_Position;
 
             currentVertexIndex++;
-
-            // gl_PositionArray.emplace_back(gl_Position);
-            // vertexShaderOutMapArray.emplace_back(outMap);
         }
-
-        // 先获取所有的顶点着色器输出属性名称列表,共后续片元着色器使用
-        // std::vector<std::string> vertexShaderOutMapKays{};
-        // if (!vertexShaderOutMapArray.empty())
-        // {
-        //     auto &m = vertexShaderOutMapArray[0];
-        //     vertexShaderOutMapKays.reserve(m.size());
-        //     std::transform(m.begin(), m.end(), std::back_inserter(vertexShaderOutMapKays),
-        //                    [](const auto &pair)
-        //                    { return pair.first; });
-        // }
 
         // 图元处理
         auto &vertexIndexArray = layer->getVertexIndexArray();
@@ -274,7 +260,7 @@ void Render::frame()
 
                         for (int layoutIndex = 0; layoutIndex < MAX_VERTEX_OUTPUT_MEMORY_SIZE; layoutIndex += MAX_VERTEX_ATTR_SIZE)
                         {
-                            int offset = layoutIndex; // * MAX_VERTEX_ATTR_SIZE;
+                            int offset = layoutIndex;
                             auto dataSize = static_cast<int>(vsOutAttr1[offset]);
                             if (dataSize == 0)
                             {
@@ -282,12 +268,9 @@ void Render::frame()
                             }
                             Shader::Interpolation interpolation = (Shader::Interpolation)vsOutAttr1[offset + 1];
 
-                            const glm::vec4 &v1 = *reinterpret_cast<const glm::vec4 *>(
-                                reinterpret_cast<const unsigned char *>(vsOutAttr1.data()) + 2 * sizeof(float));//2 表示跳过前面两个float
-                            const glm::vec4 &v2 = *reinterpret_cast<const glm::vec4 *>(
-                                reinterpret_cast<const unsigned char *>(vsOutAttr2.data()) + 2 * sizeof(float));
-                            const glm::vec4 &v3 = *reinterpret_cast<const glm::vec4 *>(
-                                reinterpret_cast<const unsigned char *>(vsOutAttr3.data()) + 2 * sizeof(float));
+                            const glm::vec4 &v1 = *reinterpret_cast<const glm::vec4 *>(vsOutAttr1.data() + 2);//2 表示跳过前面两个float
+                            const glm::vec4 &v2 = *reinterpret_cast<const glm::vec4 *>(vsOutAttr2.data() + 2);
+                            const glm::vec4 &v3 = *reinterpret_cast<const glm::vec4 *>(vsOutAttr3.data() + 2);
 
                             if (interpolation == Shader::Interpolation::Smooth)
                             {
