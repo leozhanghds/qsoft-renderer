@@ -196,7 +196,7 @@ RenderWidget::RenderWidget(QWidget *parent)
             0, 2, 3};
 
         std::shared_ptr<Layer> layer = std::make_shared<Layer>();
-        layer->setVertexArray(std::move(vertexArray), std::move(vertexIndexArray));
+        layer->setVertexArray(vertexArray, vertexIndexArray);
         layer->addVertexLayout(0, 3, 0); // 顶点
         layer->addVertexLayout(1, 4, 3); // 颜色
         layer->addVertexLayout(2, 2, 7); // uv
@@ -231,7 +231,7 @@ void RenderWidget::render()
 
         // std::cout << "FrameRenderTime: " << _render->getFrameRenderTime() << std::endl;
 
-        // break;
+        //break;
 
         update();
     }

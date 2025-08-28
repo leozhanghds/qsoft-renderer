@@ -85,7 +85,8 @@
         "fstream": "cpp",
         "any": "cpp",
         "coroutine": "cpp",
-        "resumable": "cpp"
+        "resumable": "cpp",
+        "span": "cpp"
     },
     "cmake.loadCompileCommands": true,
     "cmake.copyCompileCommands": "${workspaceFolder}/build/compile_commands.json",

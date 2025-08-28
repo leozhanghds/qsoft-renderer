@@ -12,8 +12,8 @@
 #include "Layer.h"
 
 // MSAA多重采样
-constexpr int msaaSampleCount = 4; // 4x4
-const static std::array<glm::vec2, msaaSampleCount> sampleOffsets = {
+constexpr int MSAA_SAMPLE_COUNT = 4; // 4x4
+const static std::array<glm::vec2, MSAA_SAMPLE_COUNT> sampleOffsets = {
     glm::vec2{0.375f, 0.125f},
     glm::vec2{0.125f, 0.375f},
     glm::vec2{0.625f, 0.875f},
@@ -68,14 +68,15 @@ private:
     std::vector<uint8_t> _frameBuffer;
 
     // MSAA缓冲区，记录每个像素的4个采样点的深度值和颜色
-    std::vector<std::array<float, msaaSampleCount>> _msaaDepthBuffer;
-    std::vector<std::array<glm::vec4, msaaSampleCount>> _msaaColorBuffer;
+    std::vector<std::array<float, MSAA_SAMPLE_COUNT>> _msaaDepthBuffer{};
+    std::vector<std::array<glm::vec4, MSAA_SAMPLE_COUNT>> _msaaColorBuffer{};
+    std::array<bool, MSAA_SAMPLE_COUNT> _sampleCoveredState{false, false, false, false};
 
     // 相机
     std::shared_ptr<Camera> _camera{nullptr};
 
     // 图层
-    std::vector<std::shared_ptr<Layer>> _layers;
+    std::vector<std::shared_ptr<Layer>> _layers{};
 };
 
 #endif // RENDER_H
