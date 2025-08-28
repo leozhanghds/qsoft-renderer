@@ -20,7 +20,7 @@ enum BlendFactor {
 };
 
 // 混合函数，类似于 OpenGL 的 glBlendFunc
-glm::vec4 blend(glm::vec4 src, glm::vec4 dst, 
+inline glm::vec4 blend(glm::vec4 src, glm::vec4 dst, 
                 BlendFactor srcFactor, BlendFactor dstFactor) {
     
     // 计算源因子
@@ -60,22 +60,22 @@ glm::vec4 blend(glm::vec4 src, glm::vec4 dst,
 }
 
 // 简化的混合函数，使用最常见的混合模式
-glm::vec4 alphaBlend(glm::vec4 src, glm::vec4 dst) {
+inline glm::vec4 alphaBlend(glm::vec4 src, glm::vec4 dst) {
     return blend(src, dst, SRC_ALPHA, ONE_MINUS_SRC_ALPHA);
 }
 
 // 加法混合
-glm::vec4 additiveBlend(glm::vec4 src, glm::vec4 dst) {
+inline glm::vec4 additiveBlend(glm::vec4 src, glm::vec4 dst) {
     return blend(src, dst, SRC_ALPHA, ONE);
 }
 
 // 乘法混合
-glm::vec4 multiplyBlend(glm::vec4 src, glm::vec4 dst) {
+inline glm::vec4 multiplyBlend(glm::vec4 src, glm::vec4 dst) {
     return blend(src, dst, DST_COLOR, ZERO);
 }
 
 // 自定义比例混合函数
-glm::vec4 customBlend(glm::vec4 src, glm::vec4 dst, float srcWeight, float dstWeight) {
+inline glm::vec4 customBlend(glm::vec4 src, glm::vec4 dst, float srcWeight, float dstWeight) {
     return src * glm::vec4(srcWeight) + dst * glm::vec4(dstWeight);
 }
 

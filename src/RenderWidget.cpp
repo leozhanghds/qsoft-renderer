@@ -163,6 +163,33 @@ RenderWidget::RenderWidget(QWidget *parent)
     setWindowTitle("RenderWidget");
     setFixedSize(_render->_width, _render->_height);
 
+    std::shared_ptr<Texture> texture = std::make_shared<Texture>("textures/container.jpg");
+
+    
+    if(1){
+        // 渲染一个正方形
+        std::vector<float> vertexArray{
+            // pos  //color // uv
+            -2.f, 0, 0, 1.f, 0, 0, 1.f, 0, 0, // left button
+            2.f, 0, 0, 0.f, 1, 0, 1.f, 1, 0,  // right button
+            2.f, 2, 0, 0.f, 0, 1, 1.f, 1, 1,  // right top
+            -2.f, 2, 0, 0.f, 0, 1, 1.f, 0, 1  // left top
+        };
+
+        std::vector<unsigned int> vertexIndexArray{
+            0, 1, 2,
+            0, 2, 3};
+
+        std::shared_ptr<Layer> layer = std::make_shared<Layer>();
+        layer->setVertexArray(vertexArray, vertexIndexArray);
+        layer->addVertexLayout(0, 3, 0); // 顶点
+        layer->addVertexLayout(1, 4, 3); // 颜色
+        layer->addVertexLayout(2, 2, 7); // uv
+        layer->setShader(std::make_shared<SquareShader>(layer->getLayoutCount()));
+        layer->addTexture(0,texture);
+        _render->addLayer(layer);
+    }
+
     if(1){
         // 渲染一个正方体
         std::vector<float> vertexArray;
@@ -175,33 +202,8 @@ RenderWidget::RenderWidget(QWidget *parent)
         layer->setVertexArray(vertexArray, vertexIndexArray);
         layer->addVertexLayout(0, 3, 0); // 顶点
         layer->addVertexLayout(1, 4, 3); // 颜色
-        //layer->setStride(7);
-        layer->setTexture(std::make_shared<Texture>("textures/container.jpg"));
         layer->setShader(std::make_shared<CubeShader>(layer->getLayoutCount()));
-        _render->addLayer(layer);
-    }
-
-    if(0){
-        // 渲染一个正方形
-        std::vector<float> vertexArray{
-            // pos  //color // uv
-            -1.f, 0, 0, 1.f, 0, 0, 1.f, 0, 0, // left button
-            1.f, 0, 0, 0.f, 1, 0, 1.f, 1, 0,  // right button
-            1.f, 1, 0, 0.f, 0, 1, 1.f, 1, 1,  // right top
-            -1.f, 1, 0, 0.f, 0, 1, 1.f, 0, 1  // left top
-        };
-
-        std::vector<unsigned int> vertexIndexArray{
-            0, 1, 2,
-            0, 2, 3};
-
-        std::shared_ptr<Layer> layer = std::make_shared<Layer>();
-        layer->setVertexArray(vertexArray, vertexIndexArray);
-        layer->addVertexLayout(0, 3, 0); // 顶点
-        layer->addVertexLayout(1, 4, 3); // 颜色
-        layer->addVertexLayout(2, 2, 7); // uv
-        //layer->setStride(9);
-        layer->setTexture(std::make_shared<Texture>("textures/container.jpg"));
+        layer->addTexture(0,texture);
         _render->addLayer(layer);
     }
 

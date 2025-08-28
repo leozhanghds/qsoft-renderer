@@ -5,6 +5,7 @@
 
 #include <memory>
 #include <vector>
+#include <map>
 
 #include "Texture.h"
 #include "Shader.h"
@@ -39,7 +40,7 @@ public:
     void setShader(std::shared_ptr<Shader> shader);
 
     // 纹理
-    void setTexture(std::shared_ptr<Texture> texture);
+    void addTexture(int textureId, std::shared_ptr<Texture> texture);
 
     /////////////////////////////////////////////////////////////////////
 
@@ -48,9 +49,7 @@ public:
     const std::vector<unsigned int> &getVertexIndexArray() { return _vertexIndexArray; }
 
     const std::vector<float> &getVertexArray() { return _vertexArray; }
-
-    const std::shared_ptr<Texture> &getTexture() { return _texture; }
-
+    
     const std::shared_ptr<Shader> &getShader() { return _shader; }
 
 private:
@@ -58,8 +57,6 @@ private:
     std::vector<unsigned int> _vertexIndexArray;
 
     std::vector<Data> _vertexLayouts;
-
-    std::shared_ptr<Texture> _texture{nullptr};
 
     std::shared_ptr<Shader> _shader{nullptr};
 

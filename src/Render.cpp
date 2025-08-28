@@ -102,8 +102,6 @@ void Render::frame()
         auto &vertexLayouts = layer->getVertexLayouts();
         auto stride = layer->getStride();
 
-        auto texture = layer->getTexture();
-
         auto ptr = vertexArray.data();
 
         // 处理顶点属性
@@ -123,7 +121,7 @@ void Render::frame()
             auto outputIndex = processLayerVertexSize + currentVertexIndex;
             shader->setVertexAttrArrayOutput(std::span<float>(vertexShaderOutArray[outputIndex].data(), MAX_VERTEX_OUTPUT_MEMORY_SIZE));
 
-            auto outMap = shader->vertexShader(gl_Position);
+            shader->vertexShader(gl_Position);
             gl_PositionArray[outputIndex] = gl_Position;
 
             currentVertexIndex++;
@@ -268,9 +266,9 @@ void Render::frame()
                             }
                             Shader::Interpolation interpolation = (Shader::Interpolation)vsOutAttr1[offset + 1];
 
-                            const glm::vec4 &v1 = *reinterpret_cast<const glm::vec4 *>(vsOutAttr1.data() + 2);//2 表示跳过前面两个float
-                            const glm::vec4 &v2 = *reinterpret_cast<const glm::vec4 *>(vsOutAttr2.data() + 2);
-                            const glm::vec4 &v3 = *reinterpret_cast<const glm::vec4 *>(vsOutAttr3.data() + 2);
+                            const glm::vec4 &v1 = *reinterpret_cast<const glm::vec4 *>(vsOutAttr1.data() + offset + 2);//2 表示跳过前面两个float
+                            const glm::vec4 &v2 = *reinterpret_cast<const glm::vec4 *>(vsOutAttr2.data() + offset + 2);
+                            const glm::vec4 &v3 = *reinterpret_cast<const glm::vec4 *>(vsOutAttr3.data() + offset + 2);
 
                             if (interpolation == Shader::Interpolation::Smooth)
                             {
@@ -291,8 +289,6 @@ void Render::frame()
                             rasterizeLayoutOut[offset + 1] = interpolation;
                             std::memcpy(rasterizeLayoutOut.data() + offset + 2, &rasterizeData, sizeof(glm::vec4));
                         }
-
-                        //color = rasterizeData;
 
                         // 调用片元着色器
                         glm::vec4 gl_FragColor = glm::vec4(0.0f);

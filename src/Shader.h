@@ -13,6 +13,8 @@
 #include <glm/glm.hpp>
 #include <span>
 
+#include "ColorBlend.h"
+
 // 定义最大的顶点属性输入输出字节数(第1个表示大小, 第2个0表示插值，1表示不插值，后面每个属性最大是vec4)
 // constexpr int MAX_VERTEX_ATTR_SIZE = sizeof(uint8_t) + sizeof(uint8_t) + sizeof(glm::vec4);
 // constexpr int MAX_VERTEX_ATTR_SIZE = sizeof(float) + sizeof(float) + sizeof(glm::vec4);
@@ -39,12 +41,7 @@ public:
         return shared_from_this();
     }
 
-    virtual size_t getOutLayoutCount()
-    {
-        throw std::runtime_error("getShaderOutSize not implemented");
-    };
-
-    virtual std::unordered_map<std::string, std::any> vertexShader(glm::vec4 &gl_Position) = 0;
+    virtual void vertexShader(glm::vec4 &gl_Position) = 0;
 
     virtual void fragmentShader(glm::vec4 &gl_FragColor) = 0;
 
@@ -64,6 +61,13 @@ public:
         }
         return std::any_cast<T>(it->second);
     }
+
+    void addTexture(int textureId, std::shared_ptr<Texture> texture)
+    {
+        _textures[textureId] = texture;
+    }
+
+    const std::shared_ptr<Texture> &getTexture(int textureId) { return _textures[textureId]; }
 
     void setVertexAttrArrayInput(int location, std::span<const float> vertexAttrArrayInput)
     {
@@ -118,9 +122,7 @@ public:
         }
         Shader::Interpolation interpolation = (Shader::Interpolation)_fragmentAttrArrayInput[offset + 1];
 
-        const glm::vec4 value = *reinterpret_cast<const glm::vec4 *>(_fragmentAttrArrayInput.data() + offset + 2);// 2 表示跳过前面两个float
-        
-        return value;
+        return *reinterpret_cast<const In *>(_fragmentAttrArrayInput.data() + offset + 2);// 2 表示跳过前面两个float
     }
 
 private:
@@ -133,6 +135,9 @@ private:
 
     // 片元着色器输入和输出
     std::span<const float> _fragmentAttrArrayInput{};
+
+    // 纹理
+    std::map<int, std::shared_ptr<Texture>> _textures{};
 };
 
 #endif // SHADER_H
