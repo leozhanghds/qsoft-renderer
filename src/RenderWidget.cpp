@@ -1,6 +1,6 @@
 #include "RenderWidget.h"
 #include "Render.h"
-#include "Layer.h"
+#include "Node.h"
 #include "Texture.h"
 
 #include "SquareCubeShader.h"
@@ -174,16 +174,16 @@ RenderWidget::RenderWidget(QWidget *parent)
         printVertices(vertexArray);
         printIndices(vertexIndexArray);
 
-        std::shared_ptr<Layer> layer = std::make_shared<Layer>();
-        layer->setVertexArray(vertexArray, vertexIndexArray);
-        layer->addVertexLayout(0, 3, 0); // 顶点
-        layer->addVertexLayout(1, 4, 3); // 颜色
+        std::shared_ptr<Node> node = std::make_shared<Node>();
+        node->setVertexArray(vertexArray, vertexIndexArray);
+        node->addVertexLayout(0, 3, 0); // 顶点
+        node->addVertexLayout(1, 4, 3); // 颜色
 
-        auto shader = std::make_shared<CubeShader>(layer->getLayoutCount());
+        auto shader = std::make_shared<CubeShader>(node->getLayoutCount());
         shader->addTexture(0, texture);
 
-        layer->setShader(shader);
-        _render->addLayer(layer);
+        node->setShader(shader);
+        _render->addNode(node);
     }
 
     if (1)
@@ -201,17 +201,17 @@ RenderWidget::RenderWidget(QWidget *parent)
             0, 1, 2,
             0, 2, 3};
 
-        std::shared_ptr<Layer> layer = std::make_shared<Layer>();
-        layer->setVertexArray(vertexArray, vertexIndexArray);
-        layer->addVertexLayout(0, 3, 0); // 顶点
-        layer->addVertexLayout(1, 4, 3); // 颜色
-        layer->addVertexLayout(2, 2, 7); // uv
+        std::shared_ptr<Node> node = std::make_shared<Node>();
+        node->setVertexArray(vertexArray, vertexIndexArray);
+        node->addVertexLayout(0, 3, 0); // 顶点
+        node->addVertexLayout(1, 4, 3); // 颜色
+        node->addVertexLayout(2, 2, 7); // uv
 
-        auto shader = std::make_shared<SquareShader>(layer->getLayoutCount());
+        auto shader = std::make_shared<SquareShader>(node->getLayoutCount());
         shader->addTexture(0, texture);
 
-        layer->setShader(shader);
-        _render->addLayer(layer);
+        node->setShader(shader);
+        _render->addNode(node);
     }
 
     // 设置相机回调
@@ -236,7 +236,9 @@ void RenderWidget::render()
     while (true)
     {
         QApplication::processEvents(); // 处理ui事件
-        _render->frame();
+
+        _render->clear(CLEAR_COLOR_BUFFER | CLEAR_DEPTH_BUFFER);
+        _render->draw();
 
         // std::cout << "FrameRenderTime: " << _render->getFrameRenderTime() << std::endl;
 

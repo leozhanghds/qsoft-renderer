@@ -1,5 +1,5 @@
-#ifndef LAYER_H
-#define LAYER_H
+#ifndef NODE_H
+#define NODE_H
 
 #pragma once
 
@@ -11,7 +11,7 @@
 #include "Shader.h"
 #include "ColorBlend.h"
 
-class Layer
+class Node
 {
 public:
     struct Data
@@ -29,8 +29,8 @@ public:
         FrontAndBack,
     };
 
-    Layer() {}
-    ~Layer() {}
+    Node() {}
+    ~Node() {}
 
     // 交错数组和顶点索引
     void setVertexArray(std::vector<float> &vertexArray, std::vector<unsigned int> &vertexIndexArray);
@@ -95,4 +95,4 @@ private:
     int _stride{0};
 };
 
-#endif // LAYER_H
+#endif // NODE_H

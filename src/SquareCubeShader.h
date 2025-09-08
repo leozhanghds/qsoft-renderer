@@ -2,7 +2,6 @@
 #define SQUARE_SHADER_H
 
 #include "Shader.h"
-#include <unordered_map>
 
 #include <iostream>
 

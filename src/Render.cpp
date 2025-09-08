@@ -17,7 +17,8 @@
 Render::Render(int width, int height)
     : _width(width), _height(height), _frameBuffer(width * height * 4, 255),
       _msaaDepthBuffer(width * height, {FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX}),
-      _msaaColorBuffer(width * height, {glm::vec4(0.0f), glm::vec4(0.0f), glm::vec4(0.0f), glm::vec4(0.0f)})
+      _msaaColorBuffer(width * height, {glm::vec4(0.0f), glm::vec4(0.0f), glm::vec4(0.0f), glm::vec4(0.0f)}),
+      _msaaStencilBuffer(width * height, {0, 0, 0, 0})
 {
     _camera = std::make_shared<Camera>();
 }
@@ -26,25 +27,36 @@ Render::~Render()
 {
 }
 
-void Render::addLayer(std::shared_ptr<Layer> layer)
+void Render::addNode(std::shared_ptr<Node> node)
 {
-    _layers.emplace_back(layer);
+    _nodes.emplace_back(node);
 }
 
-void Render::clear()
+void Render::clear(std::bitset<4> clearFlags)
 {
-    // std::fill(_frameBuffer.begin(), _frameBuffer.end(), 255);
-    std::fill_n(_frameBuffer.data(), _frameBuffer.size(), 255);
+    if(clearFlags.test(0))
+    {
+        // std::fill(_frameBuffer.begin(), _frameBuffer.end(), 255);
+        std::fill_n(_frameBuffer.data(), _frameBuffer.size(), 255);
+    }
 
-    // 当成一个大的数组进行快读填充
-    std::fill_n(_msaaDepthBuffer.data()->data(), _msaaDepthBuffer.size() * MSAA_SAMPLE_COUNT, FLT_MAX);
-    std::fill_n(_msaaColorBuffer.data()->data(), _msaaColorBuffer.size() * MSAA_SAMPLE_COUNT, glm::vec4(0.0f));
+    if(clearFlags.test(1))
+    {
+        // 当成一个大的数组进行快读填充
+        std::fill_n(_msaaDepthBuffer.data()->data(), _msaaDepthBuffer.size() * MSAA_SAMPLE_COUNT, FLT_MAX);
+        std::fill_n(_msaaColorBuffer.data()->data(), _msaaColorBuffer.size() * MSAA_SAMPLE_COUNT, glm::vec4(0.0f));
+    }
+
+    if(clearFlags.test(2))
+    {
+        std::fill_n(_msaaStencilBuffer.data()->data(), _msaaStencilBuffer.size() * MSAA_SAMPLE_COUNT, 0);
+    }
 }
 
-void Render::frame()
+void Render::draw()
 {
-    // 清理颜色和深度缓冲区
-    clear();
+    // 清理颜色和深度缓冲区 20250909 由外部调用
+    // clear();
 
     auto frameStartTime = std::chrono::steady_clock::now();
 
@@ -55,9 +67,9 @@ void Render::frame()
     {
         // 预先分配顶点着色器输出内存
         size_t vertexArraySize = 0;
-        for (auto &layer : _layers)
+        for (auto &node : _nodes)
         {
-            vertexArraySize += layer->getVertexArray().size();
+            vertexArraySize += node->getVertexArray().size();
         }
         vertexShaderOutArray.resize(vertexArraySize, std::vector<float>(MAX_VERTEX_OUTPUT_MEMORY_SIZE));
 
@@ -82,12 +94,12 @@ void Render::frame()
     glm::mat4 viewProjectionModelMatrix = viewProjectionMatrix * modelMatrix; // projectionMatrix * viewMatrix * modelMatrix;
 
     // 记录已处理过的图层顶点数量
-    size_t processLayerVertexSize = 0;
+    size_t processNodeVertexSize = 0;
 
-    // 绘制所有图层
-    for (auto &layer : _layers)
+    // 绘制所有节点
+    for (const auto &node : _nodes)
     {
-        auto shader = layer->getShader();
+        auto shader = node->getShader();
         if (!shader)
         {
             continue;
@@ -98,9 +110,9 @@ void Render::frame()
         shader->setUniform("viewProjectionMatrix", std::any(viewProjectionMatrix));
         shader->setUniform("viewProjectionModelMatrix", std::any(viewProjectionModelMatrix));
 
-        auto &vertexArray = layer->getVertexArray();
-        auto &vertexLayouts = layer->getVertexLayouts();
-        auto stride = layer->getStride();
+        auto &vertexArray = node->getVertexArray();
+        auto &vertexLayouts = node->getVertexLayouts();
+        auto stride = node->getStride();
 
         auto ptr = vertexArray.data();
 
@@ -118,7 +130,7 @@ void Render::frame()
             }
 
             // 调用顶点着色器
-            auto outputIndex = processLayerVertexSize + currentVertexIndex;
+            auto outputIndex = processNodeVertexSize + currentVertexIndex;
             shader->setVertexAttrArrayOutput(std::span<float>(vertexShaderOutArray[outputIndex].data(), MAX_VERTEX_OUTPUT_MEMORY_SIZE));
 
             shader->vertexShader(gl_Position);
@@ -128,17 +140,17 @@ void Render::frame()
         }
 
         // 图元处理
-        auto &vertexIndexArray = layer->getVertexIndexArray();
+        auto &vertexIndexArray = node->getVertexIndexArray();
         for (size_t vertexIndex = 0; vertexIndex < vertexIndexArray.size(); vertexIndex += 3)
         {
             Triangle tri(
-                gl_PositionArray[processLayerVertexSize + vertexIndexArray[vertexIndex]],
-                gl_PositionArray[processLayerVertexSize + vertexIndexArray[vertexIndex + 1]],
-                gl_PositionArray[processLayerVertexSize + vertexIndexArray[vertexIndex + 2]]);
+                gl_PositionArray[processNodeVertexSize + vertexIndexArray[vertexIndex]],
+                gl_PositionArray[processNodeVertexSize + vertexIndexArray[vertexIndex + 1]],
+                gl_PositionArray[processNodeVertexSize + vertexIndexArray[vertexIndex + 2]]);
 
-            auto &vsOutAttr1 = vertexShaderOutArray[processLayerVertexSize + vertexIndexArray[vertexIndex]];
-            auto &vsOutAttr2 = vertexShaderOutArray[processLayerVertexSize + vertexIndexArray[vertexIndex + 1]];
-            auto &vsOutAttr3 = vertexShaderOutArray[processLayerVertexSize + vertexIndexArray[vertexIndex + 2]];
+            auto &vsOutAttr1 = vertexShaderOutArray[processNodeVertexSize + vertexIndexArray[vertexIndex]];
+            auto &vsOutAttr2 = vertexShaderOutArray[processNodeVertexSize + vertexIndexArray[vertexIndex + 1]];
+            auto &vsOutAttr3 = vertexShaderOutArray[processNodeVertexSize + vertexIndexArray[vertexIndex + 2]];
 
             // 裁剪视锥体(先省略)
 

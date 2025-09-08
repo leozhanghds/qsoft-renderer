@@ -86,7 +86,8 @@
         "any": "cpp",
         "coroutine": "cpp",
         "resumable": "cpp",
-        "span": "cpp"
+        "span": "cpp",
+        "bitset": "cpp"
     },
     "cmake.loadCompileCommands": true,
     "cmake.copyCompileCommands": "${workspaceFolder}/build/compile_commands.json",
