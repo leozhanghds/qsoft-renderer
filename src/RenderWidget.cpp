@@ -165,8 +165,29 @@ RenderWidget::RenderWidget(QWidget *parent)
 
     std::shared_ptr<Texture> texture = std::make_shared<Texture>("textures/container.jpg");
 
-    
-    if(1){
+    if (1)
+    {
+        // 渲染一个正方体
+        std::vector<float> vertexArray;
+        std::vector<unsigned int> vertexIndexArray;
+        generateColoredCube(vertexArray, vertexIndexArray);
+        printVertices(vertexArray);
+        printIndices(vertexIndexArray);
+
+        std::shared_ptr<Layer> layer = std::make_shared<Layer>();
+        layer->setVertexArray(vertexArray, vertexIndexArray);
+        layer->addVertexLayout(0, 3, 0); // 顶点
+        layer->addVertexLayout(1, 4, 3); // 颜色
+
+        auto shader = std::make_shared<CubeShader>(layer->getLayoutCount());
+        shader->addTexture(0, texture);
+
+        layer->setShader(shader);
+        _render->addLayer(layer);
+    }
+
+    if (1)
+    {
         // 渲染一个正方形
         std::vector<float> vertexArray{
             // pos  //color // uv
@@ -185,25 +206,11 @@ RenderWidget::RenderWidget(QWidget *parent)
         layer->addVertexLayout(0, 3, 0); // 顶点
         layer->addVertexLayout(1, 4, 3); // 颜色
         layer->addVertexLayout(2, 2, 7); // uv
-        layer->setShader(std::make_shared<SquareShader>(layer->getLayoutCount()));
-        layer->addTexture(0,texture);
-        _render->addLayer(layer);
-    }
 
-    if(1){
-        // 渲染一个正方体
-        std::vector<float> vertexArray;
-        std::vector<unsigned int> vertexIndexArray;
-        generateColoredCube(vertexArray, vertexIndexArray);
-        printVertices(vertexArray);
-        printIndices(vertexIndexArray);
+        auto shader = std::make_shared<SquareShader>(layer->getLayoutCount());
+        shader->addTexture(0, texture);
 
-        std::shared_ptr<Layer> layer = std::make_shared<Layer>();
-        layer->setVertexArray(vertexArray, vertexIndexArray);
-        layer->addVertexLayout(0, 3, 0); // 顶点
-        layer->addVertexLayout(1, 4, 3); // 颜色
-        layer->setShader(std::make_shared<CubeShader>(layer->getLayoutCount()));
-        layer->addTexture(0,texture);
+        layer->setShader(shader);
         _render->addLayer(layer);
     }
 
@@ -216,7 +223,7 @@ RenderWidget::RenderWidget(QWidget *parent)
                                                 float radius = 5.0f;
                                                 float camX = sin(camera->getRenderTime()) * radius;
                                                 float camZ = cos(camera->getRenderTime()) * radius;
-                                                eye = glm::vec3(camX, 2.0f, camZ); // 周期运动
+                                                eye = glm::vec3(camX, 5.0f, camZ); // 周期运动
                                                 camera->setViewMatrix(eye, center, up); });
 }
 
@@ -233,7 +240,7 @@ void RenderWidget::render()
 
         // std::cout << "FrameRenderTime: " << _render->getFrameRenderTime() << std::endl;
 
-        //break;
+        // break;
 
         update();
     }

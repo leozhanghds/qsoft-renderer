@@ -35,10 +35,3 @@ void Layer::setShader(std::shared_ptr<Shader> shader)
     _shader = shader;
 }
 
-// 纹理
-void Layer::addTexture(int textureId, std::shared_ptr<Texture> texture)
-{
-    if(_shader){
-        _shader->addTexture(textureId, texture);
-    }
-}

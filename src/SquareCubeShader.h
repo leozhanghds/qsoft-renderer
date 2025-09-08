@@ -38,10 +38,10 @@ inline void SquareShader::fragmentShader(glm::vec4 &gl_FragColor)
 
     auto texture = getTexture(0);
 
-    auto uvcolor = texture->sampleBilinear(uv.x, uv.y);
+    auto uvcolor = texture->sampleBilinear(uv);
 
     gl_FragColor = customBlend(uvcolor, color, 0.4, 0.6);
-    //gl_FragColor = uvcolor;
+    // gl_FragColor = uvcolor;
 }
 
 class CubeShader : public Shader
@@ -50,7 +50,7 @@ public:
     CubeShader(int layoutCount) : Shader(layoutCount) {}
     ~CubeShader() = default;
 
-   void vertexShader(glm::vec4 &gl_Position) override;
+    void vertexShader(glm::vec4 &gl_Position) override;
     void fragmentShader(glm::vec4 &gl_FragColor) override;
 };
 

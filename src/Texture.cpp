@@ -52,10 +52,16 @@ Texture::Texture(const std::string &path)
     stbi_image_free(data);
 }
 
-glm::vec4 Texture::sample(float u, float v, WrapMode mode)
+glm::vec4 Texture::sample(glm::vec2 uv)
+{
+    return sample(uv);
+}
+
+glm::vec4 Texture::sample(float u, float v)
 {
     // 处理纹理环绕
-    wrap(u, v, mode);
+    wrap(u, _wrapModeU);
+    wrap(v, _wrapModeV);
 
     // 计算纹理坐标
     int x = static_cast<int>(u * (_width - 1));
@@ -65,10 +71,16 @@ glm::vec4 Texture::sample(float u, float v, WrapMode mode)
     return _pixels[y * _width + x];
 }
 
-glm::vec4 Texture::sampleBilinear(float u, float v, WrapMode mode)
+glm::vec4 Texture::sampleBilinear(glm::vec2 uv)
+{
+    return sampleBilinear(uv.x, uv.y);
+}
+
+glm::vec4 Texture::sampleBilinear(float u, float v)
 {
     // 处理纹理环绕
-    wrap(u, v, mode);
+    wrap(u, _wrapModeU);
+    wrap(v, _wrapModeV);
 
     // 计算精确纹理坐标
     float texX = u * (_width - 1);
@@ -97,21 +109,18 @@ glm::vec4 Texture::sampleBilinear(float u, float v, WrapMode mode)
 }
 
 // 处理纹理环绕
-void Texture::wrap(float &u, float &v, WrapMode mode)
+void Texture::wrap(float &d, WrapMode mode)
 {
     switch (mode)
     {
     case WrapMode::Repeat:
-        u = u - glm::floor(u);
-        v = v - glm::floor(v);
+        d = d - glm::floor(d);
         break;
     case WrapMode::MirroredRepeat:
-        u = glm::abs(glm::fract(u) * 2.0f - 1.0f);
-        v = glm::abs(glm::fract(v) * 2.0f - 1.0f);
+        d = glm::abs(glm::fract(d) * 2.0f - 1.0f);
         break;
     case WrapMode::ClampToEdge:
-        u = glm::clamp(u, 0.0f, 1.0f);
-        v = glm::clamp(v, 0.0f, 1.0f);
+        d = glm::clamp(d, 0.0f, 1.0f);
         break;
     }
 }

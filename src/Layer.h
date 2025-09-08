@@ -9,6 +9,7 @@
 
 #include "Texture.h"
 #include "Shader.h"
+#include "ColorBlend.h"
 
 class Layer
 {
@@ -19,6 +20,13 @@ public:
         int vertexSize;
         // int stride;
         int offset;
+    };
+
+    enum class CullFace
+    {
+        Back,
+        Front,
+        FrontAndBack,
     };
 
     Layer() {}
@@ -39,9 +47,6 @@ public:
     // 着色器
     void setShader(std::shared_ptr<Shader> shader);
 
-    // 纹理
-    void addTexture(int textureId, std::shared_ptr<Texture> texture);
-
     /////////////////////////////////////////////////////////////////////
 
     const std::vector<Data> &getVertexLayouts() { return _vertexLayouts; }
@@ -49,8 +54,34 @@ public:
     const std::vector<unsigned int> &getVertexIndexArray() { return _vertexIndexArray; }
 
     const std::vector<float> &getVertexArray() { return _vertexArray; }
-    
+
     const std::shared_ptr<Shader> &getShader() { return _shader; }
+
+public:
+    // 深度测试（枚举暂时省略）
+    bool depthTest{true};
+
+    // 深度写入
+    bool depthWrite{false};
+
+    // 深度函数
+    //DepthFunc depthFunc{DepthFunc::Less};
+
+    // 颜色混合
+    bool blend{false};
+
+    // 颜色混合函数
+    BlendFactor srcFactor{BlendFactor::SRC_ALPHA};
+    BlendFactor dstFactor{BlendFactor::ONE_MINUS_SRC_ALPHA};
+
+    // 颜色写入
+    bool colorWrite{true};
+
+    // 面剔除
+    bool cullFace{true};
+
+    // 面剔除方向
+    CullFace cullFaceDir{CullFace::Back};
 
 private:
     std::vector<float> _vertexArray;

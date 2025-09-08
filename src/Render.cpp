@@ -147,21 +147,10 @@ void Render::frame()
             tri._ndc_position[1] = tri._position[1] / tri._position[1].w;
             tri._ndc_position[2] = tri._position[2] / tri._position[2].w;
 
-            // 视口变换  将 NDC 坐标映射到屏幕坐标 屏幕坐标的范围是[0, width-1]和[0, height-1]
-            // 注意：y 坐标需要取反，因为 OpenGL 中的 y 轴是从下到上的
-            tri._screen_position[0].x = (tri._ndc_position[0].x + 1) * (_width - 1) / 2;
-            tri._screen_position[0].y = (-tri._ndc_position[0].y + 1) * (_height - 1) / 2;
-
-            tri._screen_position[1].x = (tri._ndc_position[1].x + 1) * (_width - 1) / 2;
-            tri._screen_position[1].y = (-tri._ndc_position[1].y + 1) * (_height - 1) / 2;
-
-            tri._screen_position[2].x = (tri._ndc_position[2].x + 1) * (_width - 1) / 2;
-            tri._screen_position[2].y = (-tri._ndc_position[2].y + 1) * (_height - 1) / 2;
-
-            // 正面/背面剔除 (立方体建模可能有问题，在立方体旋转时会有面确实)
+            // 正面/背面剔除
             if (0)
             {
-                auto front = calculateFrontFace2D(tri._screen_position[0], tri._screen_position[1], tri._screen_position[2]);
+                auto front = calculateFrontFace2D(tri._ndc_position[0], tri._ndc_position[1], tri._ndc_position[2]);
 
                 // 开启背面剔除
                 if (1 && front < 0)
@@ -175,6 +164,17 @@ void Render::frame()
                     continue;
                 }
             }
+
+            // 视口变换  将 NDC 坐标映射到屏幕坐标 屏幕坐标的范围是[0, width-1]和[0, height-1]
+            // 注意：y 坐标需要取反，因为 OpenGL 中的 y 轴是从下到上的
+            tri._screen_position[0].x = (tri._ndc_position[0].x + 1) * (_width - 1) / 2;
+            tri._screen_position[0].y = (-tri._ndc_position[0].y + 1) * (_height - 1) / 2;
+
+            tri._screen_position[1].x = (tri._ndc_position[1].x + 1) * (_width - 1) / 2;
+            tri._screen_position[1].y = (-tri._ndc_position[1].y + 1) * (_height - 1) / 2;
+
+            tri._screen_position[2].x = (tri._ndc_position[2].x + 1) * (_width - 1) / 2;
+            tri._screen_position[2].y = (-tri._ndc_position[2].y + 1) * (_height - 1) / 2;
 
             // 光栅化（生成覆盖的像素片段）
             // 计算包围盒
@@ -231,7 +231,9 @@ void Render::frame()
 
                         // 开启深度测试，记录深度测试通过的采样点
                         if (1 && depth > _msaaDepthBuffer[pixelIndex][sampleIndex])
+                        {
                             continue;
+                        }
 
                         isCovered = true;
                         _sampleCoveredState[sampleIndex] = true;
@@ -249,7 +251,7 @@ void Render::frame()
                         glm::vec4 color = glm::vec4(0.0f);
 
                         // 光栅化输出布局
-                        glm::vec4 rasterizeData = glm::vec4(0.0f);// 临时计算数据
+                        glm::vec4 rasterizeData = glm::vec4(0.0f); // 临时计算数据
                         std::vector<float> rasterizeLayoutOut(MAX_VERTEX_OUTPUT_MEMORY_SIZE, 0.0f);
 
                         // msaa只插值中心像素点的颜色，然后将颜色复制给被三角形覆盖后的采样点
@@ -266,7 +268,7 @@ void Render::frame()
                             }
                             Shader::Interpolation interpolation = (Shader::Interpolation)vsOutAttr1[offset + 1];
 
-                            const glm::vec4 &v1 = *reinterpret_cast<const glm::vec4 *>(vsOutAttr1.data() + offset + 2);//2 表示跳过前面两个float
+                            const glm::vec4 &v1 = *reinterpret_cast<const glm::vec4 *>(vsOutAttr1.data() + offset + 2); // 2 表示跳过前面两个float
                             const glm::vec4 &v2 = *reinterpret_cast<const glm::vec4 *>(vsOutAttr2.data() + offset + 2);
                             const glm::vec4 &v3 = *reinterpret_cast<const glm::vec4 *>(vsOutAttr3.data() + offset + 2);
 
@@ -296,39 +298,6 @@ void Render::frame()
                         shader->fragmentShader(gl_FragColor);
                         color = gl_FragColor;
 
-#if 0
-                        if (0)
-                        {
-                            // 平坦着色,逐顶点着色 取一个三角形任意顶点的颜色（opengl默认取三角形最后一个顶点，但是可以修改）
-                            // color = tri._color[0] + tri._color[1] + tri._color[2];
-                            // color /= 3;
-                            color = tri._color[2];
-                        }
-                        else // 逐像素着色
-                        {
-                            if (tri._hasColor)
-                            {
-                                color =
-                                    (weights.x * (tri._color[0] * w0_inv) +
-                                     weights.y * (tri._color[1] * w1_inv) +
-                                     weights.z * (tri._color[2] * w2_inv)) *
-                                    interpolated_w;
-                            }
-
-                            if (tri._hasUV && texture)
-                            {
-                                glm::vec2 uv =
-                                    (weights.x * (tri._uv[0] * w0_inv) +
-                                     weights.y * (tri._uv[1] * w1_inv) +
-                                     weights.z * (tri._uv[2] * w2_inv)) *
-                                    interpolated_w;
-
-                                // auto uvcolor = texture->sampleBilinear(uv.x, uv.y);
-                                // color = customBlend(uvcolor, color, 0.4, 0.6);
-                                color = texture->sampleBilinear(uv.x, uv.y);
-                            }
-                        }
-#endif
                         // 写入颜色缓冲区，只更新深度测试通过的采样点
                         for (int sampleIndex = 0; sampleIndex < MSAA_SAMPLE_COUNT; sampleIndex++)
                         {
@@ -338,9 +307,11 @@ void Render::frame()
                                 if (1)
                                 {
                                     auto oldColor = _msaaColorBuffer[pixelIndex][sampleIndex];
-                                    _msaaColorBuffer[pixelIndex][sampleIndex] = alphaBlend(color, oldColor);
+                                    color = alphaBlend(color, oldColor);
                                 }
-                                else
+
+                                // 开启颜色写入
+                                if (1)
                                 {
                                     _msaaColorBuffer[pixelIndex][sampleIndex] = color;
                                 }
