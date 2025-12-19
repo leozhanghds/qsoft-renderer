@@ -153,6 +153,15 @@ void Render::draw()
             auto &vsOutAttr3 = vertexShaderOutArray[processNodeVertexSize + vertexIndexArray[vertexIndex + 2]];
 
             // 裁剪视锥体(先省略)
+            // 计算平面与顶点关系：
+            /*
+                对于每个顶点，检查它是否在平面的“可见区域”内（例如：x + w >= 0）。
+                如果在内侧，保留该顶点；如果在外侧，计算与该平面交点。
+            计算交点：
+                对于每一条边，判断两端点是否在平面的两侧（即：一个在内侧，另一个在外侧）。
+                如果是，计算交点并将交点与原本的顶点一起保留下来。
+            裁剪后的三角形：
+                剩下的点和交点会重新组合成裁剪后的三角形。如果一个三角形被分割成两个，则需要拆分。*/
 
             // 透视除法  在 NDC 中，坐标范围被归一化到([-1, 1])的标准区间
             tri._ndc_position[0] = tri._position[0] / tri._position[0].w;

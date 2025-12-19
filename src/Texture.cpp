@@ -54,7 +54,8 @@ Texture::Texture(const std::string &path)
 
 glm::vec4 Texture::sample(glm::vec2 uv)
 {
-    return sample(uv);
+    //return sample(uv);
+    return sample(uv.x, uv.y);
 }
 
 glm::vec4 Texture::sample(float u, float v)
