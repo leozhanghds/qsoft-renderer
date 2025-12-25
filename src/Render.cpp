@@ -23,6 +23,16 @@ Render::Render(int width, int height)
     _camera = std::make_shared<Camera>();
 }
 
+void Render::resize(int width, int height)
+{
+    _width = width;
+    _height = height;
+    _frameBuffer.resize(width * height * 4, 255);
+    _msaaDepthBuffer.resize(width * height, {FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX});
+    _msaaColorBuffer.resize(width * height, {glm::vec4(0.0f), glm::vec4(0.0f), glm::vec4(0.0f), glm::vec4(0.0f)});
+    _msaaStencilBuffer.resize(width * height, {0, 0, 0, 0});
+}
+
 Render::~Render()
 {
 }
@@ -30,6 +40,15 @@ Render::~Render()
 void Render::addNode(std::shared_ptr<Node> node)
 {
     _nodes.emplace_back(node);
+}
+
+void Render::removeNode(std::shared_ptr<Node> node) 
+{
+    auto it = std::find(_nodes.begin(), _nodes.end(), node);
+    if (it != _nodes.end()) 
+    {
+        _nodes.erase(it);
+    }
 }
 
 void Render::clear(std::bitset<4> clearFlags)

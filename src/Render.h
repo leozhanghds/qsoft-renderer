@@ -12,6 +12,8 @@
 #include "Camera.h"
 #include "Node.h"
 
+#include "render_export.h"
+
 // MSAA多重采样
 constexpr int MSAA_SAMPLE_COUNT = 4; // 4x4
 const static std::array<glm::vec2, MSAA_SAMPLE_COUNT> sampleOffsets = {
@@ -24,11 +26,13 @@ const static std::array<glm::vec2, MSAA_SAMPLE_COUNT> sampleOffsets = {
 #define CLEAR_DEPTH_BUFFER 0b0010
 #define CLEAR_STENCIL_BUFFER 0b0100
 
-class Render : public std::enable_shared_from_this<Render>
+class RENDER_EXPORT Render : public std::enable_shared_from_this<Render>
 {
 public:
-    Render(int width, int height);
-    ~Render();
+    Render(int width = 800, int height = 800);
+    virtual ~Render();
+
+    void resize(int width, int height);
 
     std::shared_ptr<Render> getSharedPtr()
     {
@@ -36,6 +40,8 @@ public:
     }
 
     void addNode(std::shared_ptr<Node> node);
+
+    void removeNode(std::shared_ptr<Node> node);
 
     void clear(std::bitset<4> clearFlags = 0b0111);
 

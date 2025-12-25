@@ -15,6 +15,8 @@
 
 #include "ColorBlend.h"
 
+#include "render_export.h"
+
 // 定义最大的顶点属性输入输出字节数(第1个表示大小, 第2个0表示插值，1表示不插值，后面每个属性最大是vec4)
 // constexpr int MAX_VERTEX_ATTR_SIZE = sizeof(uint8_t) + sizeof(uint8_t) + sizeof(glm::vec4);
 // constexpr int MAX_VERTEX_ATTR_SIZE = sizeof(float) + sizeof(float) + sizeof(glm::vec4);
@@ -24,7 +26,7 @@ constexpr int MAX_VERTEX_OUTPUT_COMPONENTS = 16;
 // 顶点着色器属性输出内存大小
 constexpr int MAX_VERTEX_OUTPUT_MEMORY_SIZE = MAX_VERTEX_ATTR_SIZE * MAX_VERTEX_OUTPUT_COMPONENTS;//更换为有多少个float
 
-class Shader : public std::enable_shared_from_this<Shader>
+class RENDER_EXPORT Shader : public std::enable_shared_from_this<Shader>
 {
 public:
     enum Interpolation : int

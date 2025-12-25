@@ -9,7 +9,9 @@
 #include <vector>
 #include <glm/glm.hpp>
 
-class Texture : public std::enable_shared_from_this<Texture>
+#include "render_export.h"
+
+class RENDER_EXPORT Texture : public std::enable_shared_from_this<Texture>
 {
 public:
     enum class WrapMode
@@ -20,7 +22,7 @@ public:
     };
 
     Texture(const std::string &path);
-    ~Texture() = default;
+    virtual ~Texture() = default;
 
     std::shared_ptr<Texture> getSharedPtr()
     {

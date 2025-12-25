@@ -5,16 +5,18 @@
 #include <QWidget>
 #include <QImage>
 
+#include "IRenderView.h"
+
+#include "render_export.h"
+
 class Render;
 
-class RenderWidget : public QWidget
+class RENDER_EXPORT RenderWidget : public IRenderView, public QWidget
 {
-    Q_OBJECT
+    //Q_OBJECT
 public:
-    explicit RenderWidget(QWidget* parent = nullptr);
-    ~RenderWidget();
-
-    void render();
+    explicit RenderWidget();
+    virtual ~RenderWidget();
 
 protected:
     void paintEvent(QPaintEvent* event) override;
@@ -25,6 +27,4 @@ protected:
 private:
     QPoint _lastMousePos;
     QImage _displayImage;  
-
-    std::unique_ptr<Render> _render;
 };

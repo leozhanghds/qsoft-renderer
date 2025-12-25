@@ -5,7 +5,7 @@
 #endif
 
 #include <QApplication>
-#include "RenderWidget.h"
+#include "MainWindow.h"
 
 int main(int argc, char *argv[])
 {
@@ -31,10 +31,8 @@ int main(int argc, char *argv[])
 
     QApplication app(argc, argv);
 
-    RenderWidget renderWidget;
-    renderWidget.show();
-
-    renderWidget.render();
+    MainWindow mainWindow;
+    mainWindow.show();
 
     return app.exec();
 }

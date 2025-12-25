@@ -6,12 +6,18 @@
 #include <memory>
 #include <vector>
 #include <map>
+#include <atomic>
+#include <cstdint>
 
 #include "Texture.h"
 #include "Shader.h"
 #include "ColorBlend.h"
 
-class Node
+#include "render_export.h"
+
+static std::atomic<uint32_t> atomic_counter = 0;
+
+class RENDER_EXPORT Node
 {
 public:
     struct Data
@@ -29,8 +35,8 @@ public:
         FrontAndBack,
     };
 
-    Node() {}
-    ~Node() {}
+    Node() :_id(atomic_counter++){}
+    virtual ~Node() {}
 
     // 交错数组和顶点索引
     void setVertexArray(std::vector<float> &vertexArray, std::vector<unsigned int> &vertexIndexArray);
@@ -56,6 +62,8 @@ public:
     const std::vector<float> &getVertexArray() { return _vertexArray; }
 
     const std::shared_ptr<Shader> &getShader() { return _shader; }
+
+    inline bool operator==(const Node &node) {return this->_id == node._id;}
 
 public:
     // 深度测试（枚举暂时省略）
@@ -93,6 +101,8 @@ private:
 
     // 步长
     int _stride{0};
+
+    uint32_t _id;
 };
 
 #endif // NODE_H

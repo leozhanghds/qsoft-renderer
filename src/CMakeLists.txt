@@ -1,0 +1,39 @@
+cmake_minimum_required(VERSION 3.20)
+
+project(render LANGUAGES CXX)
+#message(STATUS "Configuring ${PROJECT_NAME}")
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+
+# set(CMAKE_AUTOMOC ON)
+
+add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")    
+
+find_package(Qt5 COMPONENTS Core Gui Widgets REQUIRED)
+
+include(GNUInstallDirs)
+
+# src
+aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR} SRC_LIST)
+file(GLOB HEADER_LIST RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*.h")
+
+add_library(${PROJECT_NAME} ${SRC_LIST} ${HEADER_LIST})
+# add_library(${PROJECT_NAME} SHARED ${SRC_LIST} ${HEADER_LIST})
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    Qt5::Core
+    Qt5::Gui
+    Qt5::Widgets
+)
+
+include(GenerateExportHeader)
+generate_export_header(${PROJECT_NAME}
+    BASE_NAME ${PROJECT_NAME}
+    EXPORT_FILE_NAME ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}_export.h
+)

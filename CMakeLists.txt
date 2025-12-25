@@ -16,21 +16,22 @@ find_package(Qt5 COMPONENTS Core Gui Widgets REQUIRED)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-include(GNUInstallDirs)
+add_subdirectory(src)
 
-# src
-aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/src SRC_LIST)
-file(GLOB HEADER_LIST RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*.h")
+aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/test TEST_LIST)
+file(GLOB HEADER_LIST RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "test/*.h")
 
-# message(STATUS ${SRC_LIST})
-# message(STATUS ${HEADER_LIST})
+add_executable(${PROJECT_NAME} ${TEST_LIST} ${HEADER_LIST})
 
-add_executable(${PROJECT_NAME} ${SRC_LIST} ${HEADER_LIST})
 target_include_directories(${PROJECT_NAME} PRIVATE src)
 target_include_directories(${PROJECT_NAME} PRIVATE include)
 
-target_link_libraries(${PROJECT_NAME}
+target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt5::Core
     Qt5::Gui
     Qt5::Widgets
+)
+
+target_link_libraries(${PROJECT_NAME}
+    PRIVATE render
 )

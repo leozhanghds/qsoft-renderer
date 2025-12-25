@@ -10,7 +10,9 @@
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
 
-class Camera : public std::enable_shared_from_this<Camera>
+#include "render_export.h"
+
+class RENDER_EXPORT Camera : public std::enable_shared_from_this<Camera>
 {
 
 public:
@@ -20,7 +22,7 @@ public:
         _projectionMatrix = glm::perspective(_fov, _aspect, _near, _far);
     }
 
-    ~Camera() = default;
+    virtual ~Camera() = default;
 
     std::shared_ptr<Camera> getSharedPtr()
     {
