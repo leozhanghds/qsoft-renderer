@@ -9,6 +9,7 @@
 #include "Render.h"
 #include "Texture.h"
 #include "RenderWidget.h"
+#include "DoubleBuffer.h"
 
 #include "SquareCubeShader.h"
 
@@ -30,8 +31,9 @@ MainWindow::MainWindow(QWidget *parent)
     deleteCubeButton = new QPushButton("delete cube", this);
     connect(deleteCubeButton, &QPushButton::clicked, this, &MainWindow::deleteCubeLayer);
 
-    _render = std::make_unique<Render>();
-    _renderWidget = std::make_unique<RenderWidget>();
+    _renderBuffer = std::make_unique<DoubleBuffer>();
+    _render = std::make_unique<Render>(_renderBuffer);
+    _renderWidget = std::make_unique<RenderWidget>(_renderBuffer);
     _renderWidget->setRender(_render.get());
 
     QDockWidget *leftDock = new QDockWidget("Left Dock", this);
@@ -78,7 +80,7 @@ MainWindow::MainWindow(QWidget *parent)
         shader->addTexture(0, _sharedTexture);
 
         node->setShader(shader);
-        _render->addNode(node);
+        _render->submitCommand(RenderCommand(RenderCommand::Type::AddNode, node));
     }
 
     // 设置相机回调
@@ -117,7 +119,7 @@ void MainWindow::addCubeLayer()
         shader->addTexture(0, _sharedTexture);
 
         _cubeNode->setShader(shader);
-        _render->addNode(_cubeNode);
+        _render->submitCommand(RenderCommand(RenderCommand::Type::AddNode, _cubeNode));
     }
 }
 
@@ -125,14 +127,15 @@ void MainWindow::deleteCubeLayer()
 {
     if (_cubeNode)
     {
-        _render->removeNode(_cubeNode);
+        _render->submitCommand(RenderCommand(RenderCommand::Type::RemoveNode, _cubeNode));
         _cubeNode.reset();
     }
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event)
 {
-    _render->resize(_renderWidget->width(), _renderWidget->height());
+    _render->submitCommand(RenderCommand(RenderCommand::Type::Resize, nullptr,
+                                        _renderWidget->size().width(), _renderWidget->size().height()));
 }
 
 /////////////////////

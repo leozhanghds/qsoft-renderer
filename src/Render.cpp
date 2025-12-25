@@ -14,27 +14,24 @@
 #include "TriangleData.h"
 #include "RenderHelper.h"
 
-Render::Render(int width, int height)
-    : _width(width), _height(height), _frameBuffer(width * height * 4, 255),
+Render::Render(std::unique_ptr<DoubleBuffer>& buffer, int width, int height)
+    : _width(width), _height(height), _doubleBuffer(buffer),
       _msaaDepthBuffer(width * height, {FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX}),
       _msaaColorBuffer(width * height, {glm::vec4(0.0f), glm::vec4(0.0f), glm::vec4(0.0f), glm::vec4(0.0f)}),
       _msaaStencilBuffer(width * height, {0, 0, 0, 0})
 {
     _camera = std::make_shared<Camera>();
-}
-
-void Render::resize(int width, int height)
-{
-    _width = width;
-    _height = height;
-    _frameBuffer.resize(width * height * 4, 255);
-    _msaaDepthBuffer.resize(width * height, {FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX});
-    _msaaColorBuffer.resize(width * height, {glm::vec4(0.0f), glm::vec4(0.0f), glm::vec4(0.0f), glm::vec4(0.0f)});
-    _msaaStencilBuffer.resize(width * height, {0, 0, 0, 0});
+    _doubleBuffer->back().resize(width, height);
 }
 
 Render::~Render()
 {
+}
+
+void Render::submitCommand(RenderCommand cmd)
+{
+    std::lock_guard<std::mutex> lock(_cmdMutex);
+    _commands.push(std::move(cmd));
 }
 
 void Render::addNode(std::shared_ptr<Node> node)
@@ -42,37 +39,92 @@ void Render::addNode(std::shared_ptr<Node> node)
     _nodes.emplace_back(node);
 }
 
-void Render::removeNode(std::shared_ptr<Node> node) 
+void Render::removeNode(std::shared_ptr<Node> node)
 {
     auto it = std::find(_nodes.begin(), _nodes.end(), node);
-    if (it != _nodes.end()) 
+    if (it != _nodes.end())
     {
         _nodes.erase(it);
     }
 }
+void Render::resize(int width, int height)
+{
+    if(width != _width || height != _height){
+        _width = width;
+        _height = height;
+        _msaaDepthBuffer.resize(width * height, {FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX});
+        _msaaColorBuffer.resize(width * height, {glm::vec4(0.0f), glm::vec4(0.0f), glm::vec4(0.0f), glm::vec4(0.0f)});
+        _msaaStencilBuffer.resize(width * height, {0, 0, 0, 0});
+    }
+    
+    // 对齐数组大小, 只修改Render线程的back缓冲区大小
+    auto& buffer = _doubleBuffer->back();
+    if (width != buffer.width || height != buffer.height){
+        buffer.resize(width, height);
+    }
+}
+
+void Render::processCommands()
+{
+    std::queue<RenderCommand> local;
+    {
+        std::lock_guard<std::mutex> lock(_cmdMutex);
+        std::swap(local, _commands);
+    }
+
+    while (!local.empty())
+    {
+        RenderCommand cmd = std::move(local.front());
+        local.pop();
+
+        switch (cmd.type)
+        {
+        case RenderCommand::Type::AddNode:
+            addNode(cmd.node);
+            break;
+        case RenderCommand::Type::RemoveNode:
+            removeNode(cmd.node);
+            break;
+        case RenderCommand::Type::Resize:
+            resize(cmd.pixelWidth, cmd.pixelHeight);
+            break;
+        default:
+            break;
+        }
+    }
+}
+
+void Render::renderOneFrame()
+{
+    // 只在渲染线程调用
+    processCommands(); 
+    clear(CLEAR_COLOR_BUFFER | CLEAR_DEPTH_BUFFER);
+    drawScene();
+
+    _doubleBuffer->swap();
+}
 
 void Render::clear(std::bitset<4> clearFlags)
 {
-    if(clearFlags.test(0))
+    if (clearFlags.test(0))
     {
-        // std::fill(_frameBuffer.begin(), _frameBuffer.end(), 255);
-        std::fill_n(_frameBuffer.data(), _frameBuffer.size(), 255);
+        std::fill_n(_doubleBuffer->back().pixels.data(), _doubleBuffer->back().pixels.size(), 255);
     }
 
-    if(clearFlags.test(1))
+    if (clearFlags.test(1))
     {
         // 当成一个大的数组进行快读填充
         std::fill_n(_msaaDepthBuffer.data()->data(), _msaaDepthBuffer.size() * MSAA_SAMPLE_COUNT, FLT_MAX);
         std::fill_n(_msaaColorBuffer.data()->data(), _msaaColorBuffer.size() * MSAA_SAMPLE_COUNT, glm::vec4(0.0f));
     }
 
-    if(clearFlags.test(2))
+    if (clearFlags.test(2))
     {
         std::fill_n(_msaaStencilBuffer.data()->data(), _msaaStencilBuffer.size() * MSAA_SAMPLE_COUNT, 0);
     }
 }
 
-void Render::draw()
+void Render::drawScene()
 {
     // 清理颜色和深度缓冲区 20250909 由外部调用
     // clear();
@@ -365,6 +417,7 @@ void Render::draw()
 
     // msaa采样解析 写入帧缓冲区
     int pixelIndex = 0;
+    auto &frameBuffer = _doubleBuffer->back().pixels;
     for (auto it = _msaaColorBuffer.begin(); it != _msaaColorBuffer.end(); it++)
     {
         std::array<glm::vec4, MSAA_SAMPLE_COUNT> &colorArray = *it;
@@ -376,10 +429,10 @@ void Render::draw()
         }
         color /= MSAA_SAMPLE_COUNT;
 
-        _frameBuffer[pixelIndex * 4] = color.r * 255;
-        _frameBuffer[pixelIndex * 4 + 1] = color.g * 255;
-        _frameBuffer[pixelIndex * 4 + 2] = color.b * 255;
-        _frameBuffer[pixelIndex * 4 + 3] = color.a * 255;
+        frameBuffer[pixelIndex * 4] = color.r * 255;
+        frameBuffer[pixelIndex * 4 + 1] = color.g * 255;
+        frameBuffer[pixelIndex * 4 + 2] = color.b * 255;
+        frameBuffer[pixelIndex * 4 + 3] = color.a * 255;
 
         pixelIndex++;
     }

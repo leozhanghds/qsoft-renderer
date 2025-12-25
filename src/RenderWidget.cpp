@@ -9,31 +9,43 @@
 #include <QDebug>
 #include <QApplication>
 
-RenderWidget::RenderWidget() : QWidget(nullptr)
-{}
+RenderWidget::RenderWidget(std::unique_ptr<DoubleBuffer>& buffer) : QWidget(nullptr), _doubleBuffer(buffer)
+{
+    _renderTimer = new QTimer(this);
+    connect(_renderTimer, &QTimer::timeout, this, [this]() {
+        _render->renderOneFrame();
+        this->update();
+    });
+    _renderTimer->start(16); // 60 FPS
+}
 
 RenderWidget::~RenderWidget()
 {}
 
 void RenderWidget::paintEvent(QPaintEvent *event)
 {
-    Q_UNUSED(event);
-    if (!_render) return;
+    // if (!_doubleBuffer->hasNewFrame())
+    //     return;
 
-    _render->clear(CLEAR_COLOR_BUFFER | CLEAR_DEPTH_BUFFER);
-    _render->draw();
+    Q_UNUSED(event);
+
+    const auto& buffer = _doubleBuffer->front();
 
     QImage img(
-        (uchar*)_render->getFrameBuffer(),
-        _render->_width,
-        _render->_height,
+        (uchar*)buffer.pixels.data(),
+        buffer.width,
+        buffer.height,
         QImage::Format_ARGB32
     );
+
+    //img.save("debug.png");
 
     QPainter p(this);
     p.drawImage(rect(), img);
 
     update();
+
+    //_doubleBuffer->consumeFrame();
 }
 
 void RenderWidget::mousePressEvent(QMouseEvent *event)

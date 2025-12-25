@@ -8,9 +8,12 @@
 #include <chrono>
 #include <array>
 #include <bitset>
+#include <queue>
+#include <mutex>
 
 #include "Camera.h"
 #include "Node.h"
+#include "DoubleBuffer.h"
 
 #include "render_export.h"
 
@@ -26,43 +29,53 @@ const static std::array<glm::vec2, MSAA_SAMPLE_COUNT> sampleOffsets = {
 #define CLEAR_DEPTH_BUFFER 0b0010
 #define CLEAR_STENCIL_BUFFER 0b0100
 
+struct RenderCommand
+{
+    enum class Type {
+        AddNode,
+        RemoveNode,
+        Resize
+    };
+
+    Type type;
+    std::shared_ptr<Node> node;
+    
+    int pixelWidth;
+    int pixelHeight;
+};
+
+
 class RENDER_EXPORT Render : public std::enable_shared_from_this<Render>
 {
 public:
-    Render(int width = 800, int height = 800);
+    Render(std::unique_ptr<DoubleBuffer>& buffer, int width = 800, int height = 800);
     virtual ~Render();
+
+    std::shared_ptr<Render> getSharedPtr(){return shared_from_this();}
+
+    ////////////////////////////  Command
+    //TODO 修改为命令模式
+    void clear(std::bitset<4> clearFlags = 0b0111);
+
+    void submitCommand(RenderCommand cmd);
+
+    void renderOneFrame();
+
+    //const uint8_t *getFrameBuffer(){return _frameBuffer.data();}
+
+    const std::shared_ptr<Camera> &getCamera(){return _camera;}
+
+    const float getFrameRenderTime(){return _lastFrameTime;}
+
+protected:
+    void addNode(std::shared_ptr<Node> node);
+    void removeNode(std::shared_ptr<Node> node);
 
     void resize(int width, int height);
 
-    std::shared_ptr<Render> getSharedPtr()
-    {
-        return shared_from_this();
-    }
+    void processCommands();
 
-    void addNode(std::shared_ptr<Node> node);
-
-    void removeNode(std::shared_ptr<Node> node);
-
-    void clear(std::bitset<4> clearFlags = 0b0111);
-
-    //void frame();
-    void draw();
-
-    const uint8_t *getFrameBuffer()
-    {
-        return _frameBuffer.data();
-    }
-
-    const std::shared_ptr<Camera> &getCamera()
-    {
-        return _camera;
-    }
-
-    const float getFrameRenderTime()
-    {
-        return _lastFrameTime;
-    }
-
+    void drawScene();
 public:
     int _width;
     int _height;
@@ -77,7 +90,8 @@ private:
     const float depth_max = 1.0f;
 
     // 颜色缓冲区
-    std::vector<uint8_t> _frameBuffer;
+    //std::vector<uint8_t> _frameBuffer;
+    std::unique_ptr<DoubleBuffer>& _doubleBuffer;
 
     // MSAA缓冲区，记录每个像素的4个采样点的深度/颜色/模板
     std::vector<std::array<float, MSAA_SAMPLE_COUNT>> _msaaDepthBuffer{};
@@ -88,8 +102,11 @@ private:
     // 相机
     std::shared_ptr<Camera> _camera{nullptr};
 
-    // 图层
+    // 节点
     std::vector<std::shared_ptr<Node>> _nodes{};
+    std::queue<RenderCommand> _commands{};
+
+    std::mutex _cmdMutex;
 };
 
 #endif // RENDER_H

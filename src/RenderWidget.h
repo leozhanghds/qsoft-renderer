@@ -4,18 +4,19 @@
 
 #include <QWidget>
 #include <QImage>
+#include <QTimer>
 
 #include "IRenderView.h"
-
+#include "DoubleBuffer.h"
 #include "render_export.h"
 
 class Render;
 
-class RENDER_EXPORT RenderWidget : public IRenderView, public QWidget
+class RENDER_EXPORT RenderWidget : public QWidget, public IRenderView
 {
-    //Q_OBJECT
+    Q_OBJECT
 public:
-    explicit RenderWidget();
+    explicit RenderWidget(std::unique_ptr<DoubleBuffer>& buffer);
     virtual ~RenderWidget();
 
 protected:
@@ -27,4 +28,8 @@ protected:
 private:
     QPoint _lastMousePos;
     QImage _displayImage;  
+
+    QTimer* _renderTimer{nullptr};
+
+    std::unique_ptr<DoubleBuffer>& _doubleBuffer;
 };
