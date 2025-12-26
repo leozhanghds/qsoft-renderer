@@ -95,7 +95,7 @@ MainWindow::MainWindow(QWidget *parent)
         float angularSpeed = 0.001f;  // rad/ms
         float camX = sin(camera->getRenderTime() * angularSpeed) * radius;
         float camZ = cos(camera->getRenderTime() * angularSpeed) * radius;
-        eye = glm::vec3(camX, 0.0f, camZ); // 周期运动
+        eye = glm::vec3(camX, 5.0f, camZ); // 周期运动
         camera->setViewMatrix(eye, center, up); 
     });
 }
@@ -173,12 +173,23 @@ void generateColoredCube(std::vector<float> &vertices, std::vector<unsigned int>
 
     // 正方体的6个面（每个面由2个三角形组成）
     const unsigned int faces[6][4] = {
-        {0, 1, 2, 3}, // 后面
-        {4, 5, 6, 7}, // 前面
-        {3, 7, 4, 0}, // 左面
-        {1, 5, 6, 2}, // 右面
-        {0, 4, 5, 1}, // 下面
-        {3, 2, 6, 7}  // 上面
+        // 后面 (z = -1)：从外部（后方）看逆时针
+        {0, 3, 2, 1},  // 0→3→2→1
+
+        // 前面 (z =  1)：从外部（前方）看逆时针
+        {4, 5, 6, 7},  // 4→5→6→7
+
+        // 左面 (x = -1)：从外部（左侧）看逆时针
+        {0, 4, 7, 3},  // 0→4→7→3
+
+        // 右面 (x =  1)：从外部（右侧）看逆时针
+        {1, 2, 6, 5},  // 1→2→6→5
+
+        // 底面 (y = -1)：从外部（下方）看逆时针
+        {0, 1, 5, 4},  // 0→1→5→4
+
+        // 顶面 (y =  1)：从外部（上方）看逆时针
+        {3, 7, 6, 2}   // 3→7→6→2
     };
 
     // 每个面的法线方向

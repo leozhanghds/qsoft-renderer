@@ -130,9 +130,9 @@ public:
 private:
     std::unordered_map<std::string, std::any> _uniforms{};
 
-    // 顶点着色器输入和输出
+    // 顶点着色器输入
     std::vector<std::span<const float>> _vertexAttrArrayInput{}; // C++20 新增的span类型 一个视图，可以减少拷贝数量
-
+    // 顶点着色器输出
     std::span<float> _vertexAttrArrayOutput{};
 
     // 片元着色器输入和输出

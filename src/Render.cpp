@@ -162,11 +162,11 @@ void Render::drawScene(FrameBuffer &frameBuffer)
     // 构建矩阵
     auto modelMatrix = glm::mat4x4(1.0);
 
-    // 创建视图矩阵
+    // 获取视图矩阵
     glm::vec3 eye, center, up;
     glm::mat4 viewMatrix = _camera->getViewMatrix(eye, center, up);
 
-    // 创建透视投影矩阵
+    // 获取透视投影矩阵
     float fov, aspect, near, far;
     glm::mat4 projectionMatrix = _camera->getProjectionMatrix(fov, aspect, near, far);
 
@@ -198,10 +198,11 @@ void Render::drawScene(FrameBuffer &frameBuffer)
 
         // 处理顶点属性
         // 每一组stride组成一组顶点属性（pos、color、uv、normal....等）
-        glm::vec4 gl_Position;
-        int currentVertexIndex = 0;
         for (size_t i = 0; i < vertexArray.size(); i += stride)
         {
+            glm::vec4 gl_Position;
+            int currentVertexIndex = i / stride;
+
             for (auto &layoutData : vertexLayouts)
             {
                 auto baseOffset = i + layoutData.offset;
@@ -215,8 +216,6 @@ void Render::drawScene(FrameBuffer &frameBuffer)
 
             shader->vertexShader(gl_Position);
             gl_PositionArray[outputIndex] = gl_Position;
-
-            currentVertexIndex++;
         }
 
         // 图元处理
@@ -249,7 +248,7 @@ void Render::drawScene(FrameBuffer &frameBuffer)
             tri._ndc_position[2] = tri._position[2] / tri._position[2].w;
 
             // 正面/背面剔除
-            if (0)
+            if (1)
             {
                 auto front = calculateFrontFace2D(tri._ndc_position[0], tri._ndc_position[1], tri._ndc_position[2]);
 
@@ -446,7 +445,7 @@ void Render::drawScene(FrameBuffer &frameBuffer)
         pixelIndex++;
     }
 
-    #if 1
+    #if 0
     QImage img(
         (uchar*)frameBuffer.pixels.data(),
         frameBuffer.width,
