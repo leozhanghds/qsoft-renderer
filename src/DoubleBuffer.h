@@ -40,20 +40,26 @@ public:
     // Render 线程写
     FrameBuffer& back()
     {
-        return _buffers[_backIndex];
+        auto backIndex = _backIndex.load(std::memory_order_acquire);
+        return _buffers[backIndex];
     }
 
     // UI 线程读
     const FrameBuffer& front()
     {
-        return _buffers[_frontIndex];
+        auto frontIndex = _frontIndex.load(std::memory_order_acquire);
+        return _buffers[frontIndex];
     }
 
     // Render 完成一帧后调用
     void swap()
     {
-        std::lock_guard<std::mutex> lock(_mutex);
-        std::swap(_frontIndex, _backIndex);
+        auto frontIndex = _frontIndex.load(std::memory_order_acquire);
+        auto backIndex = _backIndex.load(std::memory_order_acquire);
+        
+        _frontIndex.store(backIndex, std::memory_order_release);
+        _backIndex.store(frontIndex, std::memory_order_release);
+
         _hasNewFrame.store(true, std::memory_order_release);
     }
 
@@ -69,11 +75,11 @@ public:
 
 private:
     FrameBuffer _buffers[2];
-    int _frontIndex = 0;
-    int _backIndex = 1;
+
+    std::atomic<int> _frontIndex{0};
+    std::atomic<int> _backIndex{1};
 
     std::atomic<bool> _hasNewFrame{false};
-    std::mutex _mutex; // 只保护 swap
 };
 
 

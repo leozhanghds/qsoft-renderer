@@ -11,8 +11,9 @@
 class Node;
 class Render;
 class Texture;
-class RenderWidget;
 class DoubleBuffer;
+class RenderWidget;
+class RenderThread;
 
 class MainWindow : public QMainWindow
 {
@@ -33,6 +34,7 @@ private:
     std::unique_ptr<Render> _render{nullptr};
     std::unique_ptr<RenderWidget> _renderWidget{nullptr};
     std::unique_ptr<DoubleBuffer> _renderBuffer{nullptr};
+    std::unique_ptr<RenderThread> _renderThread{nullptr};
 
     std::shared_ptr<Texture> _sharedTexture{nullptr};
     std::shared_ptr<Node> _cubeNode{nullptr};

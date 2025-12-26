@@ -1,22 +1,16 @@
 #pragma once
 
-#include "Render.h"
+#include <memory>
+
+#include "DoubleBuffer.h"
 
 class IRenderView
 {
 public:
-    inline Render* render() const
-    {
-        return _render;
-    }
+    IRenderView(std::unique_ptr<DoubleBuffer>& doubleBuffer) : _doubleBuffer(doubleBuffer) {}
 
-
-    inline void setRender(Render *render)
-    {
-        _render = render;
-    }
+    virtual ~IRenderView() = default;
 
 protected:
-    // std::unique_ptr<Render> _render;
-    Render *_render{nullptr};
+    std::unique_ptr<DoubleBuffer>& _doubleBuffer;
 };

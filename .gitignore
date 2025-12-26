@@ -31,7 +31,9 @@
 *.out
 *.app
 
-
+.vs
 .vscode/
 
 build/
+
+render_export.h

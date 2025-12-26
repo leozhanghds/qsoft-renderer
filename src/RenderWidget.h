@@ -7,7 +7,7 @@
 #include <QTimer>
 
 #include "IRenderView.h"
-#include "DoubleBuffer.h"
+
 #include "render_export.h"
 
 class Render;
@@ -30,6 +30,4 @@ private:
     QImage _displayImage;  
 
     QTimer* _renderTimer{nullptr};
-
-    std::unique_ptr<DoubleBuffer>& _doubleBuffer;
 };

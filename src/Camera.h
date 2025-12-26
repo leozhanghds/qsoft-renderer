@@ -16,7 +16,9 @@ class RENDER_EXPORT Camera : public std::enable_shared_from_this<Camera>
 {
 
 public:
-    Camera() : _eye(glm::vec3(0, 0, 5)), _center(glm::vec3(0, 0, 0)), _up(glm::vec3(0, 1, 0)), _fov(45.0f), _aspect(1.0f), _near(1.0), _far(100)
+    Camera(int width, int height) : 
+        _eye(glm::vec3(0, 0, 10)), _center(glm::vec3(0, 0, 0)), _up(glm::vec3(0, 1, 0)), 
+        _fov(45.0f), _aspect((float)width / (float)height), _near(1.0), _far(100)
     {
         _viewMatrix = glm::lookAt(_eye, _center, _up);
         _projectionMatrix = glm::perspective(_fov, _aspect, _near, _far);

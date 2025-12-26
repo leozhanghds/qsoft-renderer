@@ -9,6 +9,7 @@
 #include "Render.h"
 #include "Texture.h"
 #include "RenderWidget.h"
+#include "RenderThread.h"
 #include "DoubleBuffer.h"
 
 #include "SquareCubeShader.h"
@@ -33,8 +34,10 @@ MainWindow::MainWindow(QWidget *parent)
 
     _renderBuffer = std::make_unique<DoubleBuffer>();
     _render = std::make_unique<Render>(_renderBuffer);
+    _renderThread = std::make_unique<RenderThread>(_render);
     _renderWidget = std::make_unique<RenderWidget>(_renderBuffer);
-    _renderWidget->setRender(_render.get());
+
+    _renderThread->start();
 
     QDockWidget *leftDock = new QDockWidget("Left Dock", this);
     QWidget *dockContent = new QWidget(leftDock);
@@ -84,20 +87,22 @@ MainWindow::MainWindow(QWidget *parent)
     }
 
     // 设置相机回调
-    _render->getCamera()->setUpdateCallback([this](std::shared_ptr<Camera> camera)
-                                            {
+    _render->getCamera()->setUpdateCallback([this](std::shared_ptr<Camera> camera){
         glm::vec3 eye, center, up;
         camera->getViewMatrix(eye, center, up);
 
-        float radius = 5.0f;
-        float camX = sin(camera->getRenderTime()) * radius;
-        float camZ = cos(camera->getRenderTime()) * radius;
-        eye = glm::vec3(camX, 5.0f, camZ); // 周期运动
-        camera->setViewMatrix(eye, center, up); });
+        float radius = 6.0f;
+        float angularSpeed = 0.001f;  // rad/ms
+        float camX = sin(camera->getRenderTime() * angularSpeed) * radius;
+        float camZ = cos(camera->getRenderTime() * angularSpeed) * radius;
+        eye = glm::vec3(camX, 0.0f, camZ); // 周期运动
+        camera->setViewMatrix(eye, center, up); 
+    });
 }
 
 MainWindow::~MainWindow()
 {
+    _renderThread->stop();
 }
 
 void MainWindow::addCubeLayer()

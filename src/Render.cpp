@@ -14,13 +14,15 @@
 #include "TriangleData.h"
 #include "RenderHelper.h"
 
-Render::Render(std::unique_ptr<DoubleBuffer>& buffer, int width, int height)
+#include <QImage>
+
+Render::Render(std::unique_ptr<DoubleBuffer> &buffer, int width, int height)
     : _width(width), _height(height), _doubleBuffer(buffer),
       _msaaDepthBuffer(width * height, {FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX}),
       _msaaColorBuffer(width * height, {glm::vec4(0.0f), glm::vec4(0.0f), glm::vec4(0.0f), glm::vec4(0.0f)}),
       _msaaStencilBuffer(width * height, {0, 0, 0, 0})
 {
-    _camera = std::make_shared<Camera>();
+    _camera = std::make_shared<Camera>(width, height);
     _doubleBuffer->back().resize(width, height);
 }
 
@@ -49,18 +51,18 @@ void Render::removeNode(std::shared_ptr<Node> node)
 }
 void Render::resize(int width, int height)
 {
-    if(width != _width || height != _height){
+    if (_width != width || _height != height)
+    {
         _width = width;
         _height = height;
         _msaaDepthBuffer.resize(width * height, {FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX});
         _msaaColorBuffer.resize(width * height, {glm::vec4(0.0f), glm::vec4(0.0f), glm::vec4(0.0f), glm::vec4(0.0f)});
         _msaaStencilBuffer.resize(width * height, {0, 0, 0, 0});
-    }
-    
-    // 对齐数组大小, 只修改Render线程的back缓冲区大小
-    auto& buffer = _doubleBuffer->back();
-    if (width != buffer.width || height != buffer.height){
-        buffer.resize(width, height);
+
+        float fov, near, far;
+        float aspect = (float)_width / (float)_height;
+        _camera->getProjectionMatrix(fov, aspect, near, far);
+        _camera->setProjectionMatrix(fov, aspect, near, far);
     }
 }
 
@@ -97,18 +99,26 @@ void Render::processCommands()
 void Render::renderOneFrame()
 {
     // 只在渲染线程调用
-    processCommands(); 
-    clear(CLEAR_COLOR_BUFFER | CLEAR_DEPTH_BUFFER);
-    drawScene();
+    processCommands();
+
+    // 对齐缓冲区大小
+    FrameBuffer &frameBuffer = _doubleBuffer->back();
+    if (_width != frameBuffer.width || _height != frameBuffer.height)
+    {
+        frameBuffer.resize(_width, _height);
+    }
+
+    clearBuffer(frameBuffer, CLEAR_COLOR_BUFFER | CLEAR_DEPTH_BUFFER);
+    drawScene(frameBuffer);
 
     _doubleBuffer->swap();
 }
 
-void Render::clear(std::bitset<4> clearFlags)
+void Render::clearBuffer(FrameBuffer &frameBuffer, std::bitset<4> clearFlags)
 {
     if (clearFlags.test(0))
     {
-        std::fill_n(_doubleBuffer->back().pixels.data(), _doubleBuffer->back().pixels.size(), 255);
+        std::fill_n(frameBuffer.pixels.data(), frameBuffer.pixels.size(), 255);
     }
 
     if (clearFlags.test(1))
@@ -124,10 +134,9 @@ void Render::clear(std::bitset<4> clearFlags)
     }
 }
 
-void Render::drawScene()
+void Render::drawScene(FrameBuffer &frameBuffer)
 {
-    // 清理颜色和深度缓冲区 20250909 由外部调用
-    // clear();
+    static auto firstFrameTime = std::chrono::steady_clock::now();
 
     auto frameStartTime = std::chrono::steady_clock::now();
 
@@ -147,11 +156,11 @@ void Render::drawScene()
         gl_PositionArray.resize(vertexArraySize, glm::vec4(0.0f));
     }
 
-    // 构建矩阵
-    auto modelMatrix = glm::mat4x4(1.0);
-
     // 相机回调
     _camera->update(_lastFrameTime, _renderTime, _renderCount);
+
+    // 构建矩阵
+    auto modelMatrix = glm::mat4x4(1.0);
 
     // 创建视图矩阵
     glm::vec3 eye, center, up;
@@ -417,7 +426,7 @@ void Render::drawScene()
 
     // msaa采样解析 写入帧缓冲区
     int pixelIndex = 0;
-    auto &frameBuffer = _doubleBuffer->back().pixels;
+    // std::cout << _msaaColorBuffer.size() << " " << frameBuffer.width << " " << frameBuffer.height << std::endl;
     for (auto it = _msaaColorBuffer.begin(); it != _msaaColorBuffer.end(); it++)
     {
         std::array<glm::vec4, MSAA_SAMPLE_COUNT> &colorArray = *it;
@@ -429,16 +438,31 @@ void Render::drawScene()
         }
         color /= MSAA_SAMPLE_COUNT;
 
-        frameBuffer[pixelIndex * 4] = color.r * 255;
-        frameBuffer[pixelIndex * 4 + 1] = color.g * 255;
-        frameBuffer[pixelIndex * 4 + 2] = color.b * 255;
-        frameBuffer[pixelIndex * 4 + 3] = color.a * 255;
+        frameBuffer.pixels[pixelIndex * 4] = color.r * 255;
+        frameBuffer.pixels[pixelIndex * 4 + 1] = color.g * 255;
+        frameBuffer.pixels[pixelIndex * 4 + 2] = color.b * 255;
+        frameBuffer.pixels[pixelIndex * 4 + 3] = color.a * 255;
 
         pixelIndex++;
     }
 
+    #if 1
+    QImage img(
+        (uchar*)frameBuffer.pixels.data(),
+        frameBuffer.width,
+        frameBuffer.height,
+        QImage::Format_ARGB32
+    );
+
+    img.save("test.png");
+    #endif
+
     auto frameEndTime = std::chrono::steady_clock::now();
-    _lastFrameTime = (std::chrono::duration<float>(frameEndTime - frameStartTime)).count();
-    _renderTime += _lastFrameTime;
+    _lastFrameTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+                         frameEndTime - frameStartTime).count();
+
+    //_renderTime += _lastFrameTime;
+    _renderTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+                         frameEndTime - firstFrameTime).count();
     _renderCount++;
 }

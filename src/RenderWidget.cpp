@@ -9,14 +9,16 @@
 #include <QDebug>
 #include <QApplication>
 
-RenderWidget::RenderWidget(std::unique_ptr<DoubleBuffer>& buffer) : QWidget(nullptr), _doubleBuffer(buffer)
+RenderWidget::RenderWidget(std::unique_ptr<DoubleBuffer>& buffer) : QWidget(nullptr), IRenderView(buffer)
 {
     _renderTimer = new QTimer(this);
-    connect(_renderTimer, &QTimer::timeout, this, [this]() {
-        _render->renderOneFrame();
-        this->update();
+    connect(_renderTimer, &QTimer::timeout, [this](){
+        if (_doubleBuffer->hasNewFrame()){    
+            update();
+            _doubleBuffer->consumeFrame();
+        }
     });
-    _renderTimer->start(16); // 60 FPS
+    _renderTimer->start(16);
 }
 
 RenderWidget::~RenderWidget()
@@ -24,13 +26,11 @@ RenderWidget::~RenderWidget()
 
 void RenderWidget::paintEvent(QPaintEvent *event)
 {
-    // if (!_doubleBuffer->hasNewFrame())
-    //     return;
-
     Q_UNUSED(event);
 
-    const auto& buffer = _doubleBuffer->front();
+    QWidget::paintEvent(event);
 
+    const auto& buffer = _doubleBuffer->front();
     QImage img(
         (uchar*)buffer.pixels.data(),
         buffer.width,
@@ -38,14 +38,8 @@ void RenderWidget::paintEvent(QPaintEvent *event)
         QImage::Format_ARGB32
     );
 
-    //img.save("debug.png");
-
-    QPainter p(this);
-    p.drawImage(rect(), img);
-
-    update();
-
-    //_doubleBuffer->consumeFrame();
+    QPainter painter(this);    
+    painter.drawImage(rect(), img);
 }
 
 void RenderWidget::mousePressEvent(QMouseEvent *event)

@@ -55,7 +55,7 @@ public:
 
     ////////////////////////////  Command
     //TODO 修改为命令模式
-    void clear(std::bitset<4> clearFlags = 0b0111);
+    void clearBuffer(FrameBuffer& frameBuffer, std::bitset<4> clearFlags = 0b0111);
 
     void submitCommand(RenderCommand cmd);
 
@@ -75,7 +75,7 @@ protected:
 
     void processCommands();
 
-    void drawScene();
+    void drawScene(FrameBuffer& frameBuffer);
 public:
     int _width;
     int _height;
