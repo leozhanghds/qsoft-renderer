@@ -55,29 +55,28 @@ public:
 
 inline void CubeShader::vertexShader(glm::vec4 &gl_Position)
 {
-    // 从布局中获取顶点属性
     auto pos = vlayoutIn<glm::vec3>(0);
     auto color = vlayoutIn<glm::vec4>(1);
+    auto uv = vlayoutIn<glm::vec2>(2);
+    auto normal = vlayoutIn<glm::vec3>(3);
 
-    // std::cout << "deal begin pos: " << pos.x << " " << pos.y << " " << pos.z << std::endl;
-
-    // 处理顶点
     glm::mat4 mvp = getUniform<glm::mat4>("viewProjectionModelMatrix");
     gl_Position = glm::vec4(mvp * glm::vec4(pos, 1.0f));
 
-    // std::cout << "deal end pos: " << gl_Position.x << " " << gl_Position.y << " " << gl_Position.z << std::endl;
-
-    // 处理其他属性，写入缓存
-
-    // 返回
     vlayoutOut(0, Interpolation::Smooth, color);
+    vlayoutOut(1, Interpolation::Smooth, uv);
+    vlayoutOut(2, Interpolation::Smooth, normal);
 }
 
 inline void CubeShader::fragmentShader(glm::vec4 &gl_FragColor)
 {
     auto color = flayoutIn<glm::vec4>(0);
+    auto uv = flayoutIn<glm::vec2>(1);
 
-    gl_FragColor = color;
+    auto texture = getTexture(0);
+    auto texColor = texture->sampleBilinear(uv);
+
+    gl_FragColor = customBlend(texColor, color, 0.4, 0.6);
 }
 
 #endif // SQUARE_SHADER_H

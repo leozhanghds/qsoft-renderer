@@ -12,6 +12,10 @@
       "environment": {
         "QT5_DIR": "D:\\ehlocean\\sdk143\\Qt\\5.15.2\\msvc2019_64"
       },
+      "toolset": {
+        "value": "v143,version=14.44,host=x64",
+        "strategy": "external"
+      },
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
