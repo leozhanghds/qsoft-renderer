@@ -149,7 +149,7 @@ void Render::drawScene(FrameBuffer &frameBuffer)
         size_t vertexArraySize = 0;
         for (auto &node : _nodes)
         {
-            vertexArraySize += node->getVertexArray().size();
+            vertexArraySize += node->getVertexArray().size() / node->getStride();
         }
         vertexShaderOutArray.resize(vertexArraySize, std::vector<float>(MAX_VERTEX_OUTPUT_MEMORY_SIZE));
 
@@ -417,6 +417,8 @@ void Render::drawScene(FrameBuffer &frameBuffer)
                 }
             }
         }
+
+        processNodeVertexSize += vertexArray.size() / stride;
     }
 
     // msaa采样解析 写入帧缓冲区
