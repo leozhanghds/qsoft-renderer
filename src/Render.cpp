@@ -358,23 +358,22 @@ void Render::drawScene(FrameBuffer &frameBuffer)
                         glm::vec3 weights = barycentric(tri._screen_position[0], tri._screen_position[1], tri._screen_position[2], x + 0.5, y + 0.5);
                         float interpolated_w = 1.0 / (weights.x * w0_inv + weights.y * w1_inv + weights.z * w2_inv);
 
-                        for (int layoutIndex = 0; layoutIndex < MAX_VERTEX_OUTPUT_MEMORY_SIZE; layoutIndex += MAX_VERTEX_ATTR_SIZE)
+                        for (int loc = 0; loc < MAX_VERTEX_OUTPUT_COMPONENTS; loc++)
                         {
-                            int offset = layoutIndex;
-                            auto dataSize = static_cast<int>(vsOutAttr1[offset]);
-                            if (dataSize == 0)
+                            auto &meta = shader->getOutputLayout()[loc];
+                            if (meta.floatCount == 0)
                             {
                                 continue;
                             }
-                            Shader::Interpolation interpolation = (Shader::Interpolation)vsOutAttr1[offset + 1];
 
-                            const glm::vec4 &v1 = *reinterpret_cast<const glm::vec4 *>(vsOutAttr1.data() + offset + 2); // 2 表示跳过前面两个float
-                            const glm::vec4 &v2 = *reinterpret_cast<const glm::vec4 *>(vsOutAttr2.data() + offset + 2);
-                            const glm::vec4 &v3 = *reinterpret_cast<const glm::vec4 *>(vsOutAttr3.data() + offset + 2);
+                            int offset = loc * MAX_VERTEX_ATTR_DATA_SIZE;
 
-                            if (interpolation == Shader::Interpolation::Smooth)
+                            const glm::vec4 &v1 = *reinterpret_cast<const glm::vec4 *>(vsOutAttr1.data() + offset);
+                            const glm::vec4 &v2 = *reinterpret_cast<const glm::vec4 *>(vsOutAttr2.data() + offset);
+                            const glm::vec4 &v3 = *reinterpret_cast<const glm::vec4 *>(vsOutAttr3.data() + offset);
+
+                            if (meta.interpolation == Shader::Interpolation::Smooth)
                             {
-                                // 平滑插值
                                 rasterizeData =
                                     (weights.x * (v1 * w0_inv) +
                                      weights.y * (v2 * w1_inv) +
@@ -383,13 +382,10 @@ void Render::drawScene(FrameBuffer &frameBuffer)
                             }
                             else
                             {
-                                // 平坦插值 （opengl默认取三角形最后一个顶点，但是可以修改）
                                 rasterizeData = v3;
                             }
 
-                            rasterizeLayoutOut[offset] = dataSize;
-                            rasterizeLayoutOut[offset + 1] = interpolation;
-                            std::memcpy(rasterizeLayoutOut.data() + offset + 2, &rasterizeData, sizeof(glm::vec4));
+                            std::memcpy(rasterizeLayoutOut.data() + offset, &rasterizeData, sizeof(glm::vec4));
                         }
 
                         // 调用片元着色器

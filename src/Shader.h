@@ -6,6 +6,7 @@
 #include <glm/glm.hpp>
 
 #include <any>
+#include <array>
 #include <memory>
 #include <vector>
 #include <string>
@@ -17,14 +18,9 @@
 
 #include "render_export.h"
 
-// 定义最大的顶点属性输入输出字节数(第1个表示大小, 第2个0表示插值，1表示不插值，后面每个属性最大是vec4)
-// constexpr int MAX_VERTEX_ATTR_SIZE = sizeof(uint8_t) + sizeof(uint8_t) + sizeof(glm::vec4);
-// constexpr int MAX_VERTEX_ATTR_SIZE = sizeof(float) + sizeof(float) + sizeof(glm::vec4);
-constexpr int MAX_VERTEX_ATTR_SIZE = (sizeof(float) + sizeof(float) + sizeof(glm::vec4)) / sizeof(float);//更换为float的数量
-// 顶点着色器属性输出数量限制
+constexpr int MAX_VERTEX_ATTR_DATA_SIZE = sizeof(glm::vec4) / sizeof(float);
 constexpr int MAX_VERTEX_OUTPUT_COMPONENTS = 16;
-// 顶点着色器属性输出内存大小
-constexpr int MAX_VERTEX_OUTPUT_MEMORY_SIZE = MAX_VERTEX_ATTR_SIZE * MAX_VERTEX_OUTPUT_COMPONENTS;//更换为有多少个float
+constexpr int MAX_VERTEX_OUTPUT_MEMORY_SIZE = MAX_VERTEX_ATTR_DATA_SIZE * MAX_VERTEX_OUTPUT_COMPONENTS;
 
 class RENDER_EXPORT Shader : public std::enable_shared_from_this<Shader>
 {
@@ -33,6 +29,12 @@ public:
     {
         Smooth = 0,
         Flat = 1,
+    };
+
+    struct AttrMeta
+    {
+        uint8_t floatCount{0};
+        Interpolation interpolation{Smooth};
     };
 
     Shader(int layoutCount) : _vertexAttrArrayInput(layoutCount) {}
@@ -97,38 +99,27 @@ public:
     template <typename Out>
     void vlayoutOut(int location, Interpolation interpolation, const Out &data)
     {
-        // char* arr = reinterpret_cast<uint8_t *>(_vertexAttrArrayOutput.data());
+        _outputLayout[location].floatCount = sizeof(Out) / sizeof(float);
+        _outputLayout[location].interpolation = interpolation;
 
-        size_t offset = location * MAX_VERTEX_ATTR_SIZE;
-
-        // 大小
-        _vertexAttrArrayOutput[offset] = sizeof(Out) / sizeof(float);
-
-        // 插值
-        _vertexAttrArrayOutput[offset + 1] = interpolation;
-
-        // 数据
-        std::memcpy(_vertexAttrArrayOutput.data() + offset + 2, &data, sizeof(Out));
+        size_t offset = location * MAX_VERTEX_ATTR_DATA_SIZE;
+        std::memcpy(_vertexAttrArrayOutput.data() + offset, &data, sizeof(Out));
     }
 
     // 片元着色器
     template <typename In>
     const In &flayoutIn(int location)
     {
-        int offset = location * MAX_VERTEX_ATTR_SIZE;
-        auto dataSize = static_cast<int>(_fragmentAttrArrayInput[offset]);
-        if (dataSize == 0)
-        {
-            //continue;
-            //throw std::runtime_error("");
-        }
-        Shader::Interpolation interpolation = (Shader::Interpolation)_fragmentAttrArrayInput[offset + 1];
-
-        return *reinterpret_cast<const In *>(_fragmentAttrArrayInput.data() + offset + 2);// 2 表示跳过前面两个float
+        int offset = location * MAX_VERTEX_ATTR_DATA_SIZE;
+        return *reinterpret_cast<const In *>(_fragmentAttrArrayInput.data() + offset);
     }
+
+    const std::array<AttrMeta, MAX_VERTEX_OUTPUT_COMPONENTS> &getOutputLayout() const { return _outputLayout; }
 
 private:
     std::unordered_map<std::string, std::any> _uniforms{};
+
+    std::array<AttrMeta, MAX_VERTEX_OUTPUT_COMPONENTS> _outputLayout{};
 
     // 顶点着色器输入
     std::vector<std::span<const float>> _vertexAttrArrayInput{}; // C++20 新增的span类型 一个视图，可以减少拷贝数量
