@@ -24,12 +24,17 @@ public:
     void addCubeLayer();
     void deleteCubeLayer();
 
+    void addBunnyLayer();
+    void deleteBunnyLayer();
+
 protected:
     void resizeEvent(QResizeEvent *event) override;
 
 private:
     QPushButton* addCubeButton{nullptr};
     QPushButton* deleteCubeButton{nullptr};
+    QPushButton* addBunnyButton{nullptr};
+    QPushButton* deleteBunnyButton{nullptr};
     
     std::unique_ptr<Render> _render{nullptr};
     std::unique_ptr<RenderWidget> _renderWidget{nullptr};
@@ -38,6 +43,7 @@ private:
 
     std::shared_ptr<Texture> _sharedTexture{nullptr};
     std::shared_ptr<Node> _cubeNode{nullptr};
+    std::shared_ptr<Node> _bunnyNode{nullptr};
 };
 
 #endif

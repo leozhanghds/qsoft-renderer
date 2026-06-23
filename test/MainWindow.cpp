@@ -13,8 +13,15 @@
 #include "DoubleBuffer.h"
 
 #include "SquareCubeShader.h"
+#include "BunnyShader.h"
 
 #include <iostream>
+#include <fstream>
+#include <sstream>
+#include <cstdlib>
+#include <cmath>
+#include <cfloat>
+#include <glm/gtc/matrix_transform.hpp>
 
 // 打印索引数据
 void printIndices(const std::vector<unsigned int> &indices);
@@ -22,6 +29,7 @@ void printIndices(const std::vector<unsigned int> &indices);
 void printVertices(const std::vector<float> &vertices);
 // 生成彩色正方体的顶点数据和索引数据
 void generateColoredCube(std::vector<float> &vertices, std::vector<unsigned int> &indices);
+bool loadOBJ(const std::string &relativePath, std::vector<float> &vertices, std::vector<unsigned int> &indices, glm::vec3 &center);
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -31,6 +39,12 @@ MainWindow::MainWindow(QWidget *parent)
 
     deleteCubeButton = new QPushButton("delete cube", this);
     connect(deleteCubeButton, &QPushButton::clicked, this, &MainWindow::deleteCubeLayer);
+
+    addBunnyButton = new QPushButton("add bunny", this);
+    connect(addBunnyButton, &QPushButton::clicked, this, &MainWindow::addBunnyLayer);
+
+    deleteBunnyButton = new QPushButton("delete bunny", this);
+    connect(deleteBunnyButton, &QPushButton::clicked, this, &MainWindow::deleteBunnyLayer);
 
     _renderBuffer = std::make_unique<DoubleBuffer>();
     _render = std::make_unique<Render>(_renderBuffer);
@@ -49,6 +63,8 @@ MainWindow::MainWindow(QWidget *parent)
     buttonLayout->setSpacing(5);                  // 按钮间距
     buttonLayout->addWidget(addCubeButton);
     buttonLayout->addWidget(deleteCubeButton);
+    buttonLayout->addWidget(addBunnyButton);
+    buttonLayout->addWidget(deleteBunnyButton);
     buttonLayout->addStretch();
 
     this->setCentralWidget(_renderWidget.get());
@@ -136,6 +152,46 @@ void MainWindow::deleteCubeLayer()
     {
         _render->submitCommand(RenderCommand(RenderCommand::Type::RemoveNode, _cubeNode));
         _cubeNode.reset();
+    }
+}
+
+void MainWindow::addBunnyLayer()
+{
+    if (!_bunnyNode)
+    {
+        std::vector<float> vertexArray;
+        std::vector<unsigned int> vertexIndexArray;
+        glm::vec3 center;
+
+        if (!loadOBJ("obj/bunny.obj", vertexArray, vertexIndexArray, center))
+        {
+            std::cerr << "Failed to load bunny.obj" << std::endl;
+            return;
+        }
+
+        _bunnyNode = std::make_shared<Node>();
+        _bunnyNode->setVertexArray(vertexArray, vertexIndexArray);
+        _bunnyNode->addVertexLayout(0, 3, 0);
+        _bunnyNode->addVertexLayout(1, 3, 3);
+
+        auto shader = std::make_shared<BunnyShader>(_bunnyNode->getLayoutCount());
+
+        float scale = 15.0f;
+        glm::mat4 modelMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(scale));
+        modelMatrix = glm::translate(modelMatrix, -center);
+        shader->setUniform("modelMatrix", modelMatrix);
+
+        _bunnyNode->setShader(shader);
+        _render->submitCommand(RenderCommand(RenderCommand::Type::AddNode, _bunnyNode));
+    }
+}
+
+void MainWindow::deleteBunnyLayer()
+{
+    if (_bunnyNode)
+    {
+        _render->submitCommand(RenderCommand(RenderCommand::Type::RemoveNode, _bunnyNode));
+        _bunnyNode.reset();
     }
 }
 
@@ -261,4 +317,96 @@ void printIndices(const std::vector<unsigned int> &indices)
         std::cout << "三角形 " << i / 3 << ": ";
         std::cout << indices[i] << ", " << indices[i + 1] << ", " << indices[i + 2] << "\n";
     }
+}
+
+bool loadOBJ(const std::string &relativePath, std::vector<float> &vertices, std::vector<unsigned int> &indices, glm::vec3 &center)
+{
+    std::string fullPath;
+    const char *env = std::getenv("RENDER_RESOURCE_PATH");
+    if (env)
+    {
+        fullPath = std::string(env) + "/" + relativePath;
+    }
+    else
+    {
+        fullPath = relativePath;
+    }
+
+    std::ifstream file(fullPath);
+    if (!file.is_open())
+    {
+        std::cerr << "Failed to open OBJ: " << fullPath << std::endl;
+        return false;
+    }
+
+    std::vector<glm::vec3> positions;
+    std::vector<glm::ivec3> faces;
+
+    std::string line;
+    while (std::getline(file, line))
+    {
+        if (line.empty() || line[0] == '#')
+            continue;
+
+        std::istringstream iss(line);
+        std::string prefix;
+        iss >> prefix;
+
+        if (prefix == "v")
+        {
+            glm::vec3 pos;
+            iss >> pos.x >> pos.y >> pos.z;
+            positions.push_back(pos);
+        }
+        else if (prefix == "f")
+        {
+            int i0, i1, i2;
+            iss >> i0 >> i1 >> i2;
+            faces.push_back(glm::ivec3(i0 - 1, i1 - 1, i2 - 1));
+        }
+    }
+
+    glm::vec3 minPos(FLT_MAX);
+    glm::vec3 maxPos(-FLT_MAX);
+    for (auto &p : positions)
+    {
+        minPos = glm::min(minPos, p);
+        maxPos = glm::max(maxPos, p);
+    }
+    center = (minPos + maxPos) * 0.5f;
+
+    vertices.clear();
+    indices.clear();
+
+    unsigned int idx = 0;
+    for (auto &face : faces)
+    {
+        glm::vec3 &p0 = positions[face.x];
+        glm::vec3 &p1 = positions[face.y];
+        glm::vec3 &p2 = positions[face.z];
+
+        glm::vec3 normal = glm::normalize(glm::cross(p1 - p0, p2 - p0));
+        if (std::isnan(normal.x))
+        {
+            normal = glm::vec3(0.0f, 1.0f, 0.0f);
+        }
+
+        float verts[] = {
+            p0.x, p0.y, p0.z, normal.x, normal.y, normal.z,
+            p1.x, p1.y, p1.z, normal.x, normal.y, normal.z,
+            p2.x, p2.y, p2.z, normal.x, normal.y, normal.z,
+        };
+        vertices.insert(vertices.end(), std::begin(verts), std::end(verts));
+
+        indices.push_back(idx);
+        indices.push_back(idx + 1);
+        indices.push_back(idx + 2);
+        idx += 3;
+    }
+
+    std::cout << "Loaded OBJ: " << positions.size() << " positions, "
+              << faces.size() << " faces, "
+              << vertices.size() / 6 << " expanded vertices" << std::endl;
+
+    return true;
 }
