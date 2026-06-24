@@ -7,6 +7,7 @@
 **A pure-CPU software rasterizer** that faithfully reproduces the entire classic OpenGL rendering pipeline — no GPU calls, just raw C++ and math.
 
 ![运行截图](image/run_result.png)
+![运行截图](image/run_bunny_obj.png)
 
 ---
 
@@ -91,8 +92,8 @@
 ```
 qsoft-renderer/
 ├── src/                        # 渲染核心库 (static lib)
-│   ├── Render.h / Render.cpp   # ★ 核心渲染器 — 完整管线实现 (467 行)
-│   ├── Shader.h                # ★ 着色器基类 — VS/FS 接口 + uniform + 属性布局
+│   ├── Render.h / Render.cpp   # 核心渲染器 — 完整管线实现 (467 行)
+│   ├── Shader.h                # 着色器基类 — VS/FS 接口 + uniform + 属性布局
 │   ├── SquareCubeShader.h      # 示例着色器：带纹理的正方形 / 纯色立方体
 │   ├── Camera.h / Camera.cpp   # 相机 — View + Projection 矩阵 + 回调动画
 │   ├── Texture.h / Texture.cpp # 纹理 — 加载 + 采样 + Wrap 模式
@@ -115,6 +116,7 @@ qsoft-renderer/
 │   └── stb_image.h             # 单头文件图片加载器
 ├── image/
 │   └── run_result.png          # 运行截图
+│   └── run_bunny_obj.png       # 运行截图：加载 bunny.obj 模型
 ├── CMakeLists.txt              # CMake 构建配置
 └── CMakePresets.json           # 预设：Windows/Linux × Debug/Release
 ```

@@ -74,7 +74,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     _sharedTexture = std::make_shared<Texture>("textures/container.jpg");
 
-    if (1)
+    if (0)
     {
         // 渲染一个正方形
         std::vector<float> vertexArray{
@@ -176,7 +176,7 @@ void MainWindow::addBunnyLayer()
 
         auto shader = std::make_shared<BunnyShader>(_bunnyNode->getLayoutCount());
 
-        float scale = 15.0f;
+        float scale = 45.0f;
         glm::mat4 modelMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(scale));
         modelMatrix = glm::translate(modelMatrix, -center);
         shader->setUniform("modelMatrix", modelMatrix);
