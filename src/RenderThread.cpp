@@ -33,8 +33,7 @@ void RenderThread::loop()
     while (_running)
     {
         _render->renderOneFrame();
-        //next += std::chrono::milliseconds(32);
-        next += std::chrono::milliseconds(16);
+        next += std::chrono::milliseconds(32);
         std::this_thread::sleep_until(next);
     }
 }

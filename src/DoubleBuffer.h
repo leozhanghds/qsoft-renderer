@@ -13,7 +13,7 @@ struct FrameBuffer
 {
     int width = 0;
     int height = 0;
-    std::vector<uint8_t> pixels; // ARGB32
+    std::vector<uint8_t> pixels; // RGBA8888
 
     FrameBuffer(int w, int h)
         : width(w), height(h), pixels(w * h * 4)

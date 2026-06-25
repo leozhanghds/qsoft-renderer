@@ -35,7 +35,7 @@ void RenderWidget::paintEvent(QPaintEvent *event)
         (uchar*)buffer.pixels.data(),
         buffer.width,
         buffer.height,
-        QImage::Format_ARGB32
+        QImage::Format_RGBA8888 //注意通道顺序
     );
 
     QPainter painter(this);    

@@ -259,6 +259,7 @@ void Render::drawScene(FrameBuffer &frameBuffer)
         shader->setUniform("projectionMatrix", std::any(projectionMatrix));
         shader->setUniform("viewProjectionMatrix", std::any(viewProjectionMatrix));
         shader->setUniform("viewProjectionModelMatrix", std::any(viewProjectionModelMatrix));
+        shader->setUniform("viewPos", eye);
 
         auto &vertexArray = node->getVertexArray();
         auto &vertexLayouts = node->getVertexLayouts();
@@ -530,15 +531,14 @@ void Render::drawScene(FrameBuffer &frameBuffer)
                             {
                                 if (_sampleCoveredState[sampleIndex])
                                 {
-                                    // 开启颜色混合
+                                    // 开启颜色混合，各采样点独立与各自的旧颜色混合
                                     if (1)
                                     {
                                         auto oldColor = _msaaColorBuffer[pixelIndex][sampleIndex];
-                                        color = alphaBlend(color, oldColor);
+                                        auto blended = alphaBlend(gl_FragColor, oldColor);
+                                        _msaaColorBuffer[pixelIndex][sampleIndex] = blended;
                                     }
-
-                                    // 开启颜色写入
-                                    if (1)
+                                    else
                                     {
                                         _msaaColorBuffer[pixelIndex][sampleIndex] = color;
                                     }
@@ -580,7 +580,7 @@ void Render::drawScene(FrameBuffer &frameBuffer)
         (uchar*)frameBuffer.pixels.data(),
         frameBuffer.width,
         frameBuffer.height,
-        QImage::Format_ARGB32
+        QImage::Format_RGBA8888
     );
 
     img.save("test.png");
