@@ -176,10 +176,11 @@ void MainWindow::addBunnyLayer()
 
         auto shader = std::make_shared<BunnyShader>(_bunnyNode->getLayoutCount());
 
-        float scale = 45.0f;
+        float scale = 35.0f;
         glm::mat4 modelMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(scale));
         modelMatrix = glm::translate(modelMatrix, -center);
         shader->setUniform("modelMatrix", modelMatrix);
+        shader->setUniform("lightPos", glm::vec3(5.0f, 5.0f, -5.0f));
 
         _bunnyNode->setShader(shader);
         _render->submitCommand(RenderCommand(RenderCommand::Type::AddNode, _bunnyNode));
@@ -339,12 +340,13 @@ bool loadOBJ(const std::string &relativePath, std::vector<float> &vertices, std:
         return false;
     }
 
-    std::vector<glm::vec3> positions;
-    std::vector<glm::ivec3> faces;
+    std::vector<glm::vec3> positions; //flaot
+    std::vector<glm::ivec3> faces;// int32
 
     std::string line;
     while (std::getline(file, line))
     {
+        // 跳过注释行
         if (line.empty() || line[0] == '#')
             continue;
 
@@ -352,6 +354,10 @@ bool loadOBJ(const std::string &relativePath, std::vector<float> &vertices, std:
         std::string prefix;
         iss >> prefix;
 
+        // v是顶点，f是面，三种类型
+        // 仅有顶点	        f 1 2 3	        使用第1、2、3个顶点构成三角形
+        // 顶点/纹理	    f 1/1 2/2 3/3	顶点索引/纹理坐标索引
+        // 顶点/纹理/法线   f 1/1/1 2/2/2 3/3/3	顶点索引/纹理索引/法线索引
         if (prefix == "v")
         {
             glm::vec3 pos;
@@ -362,6 +368,7 @@ bool loadOBJ(const std::string &relativePath, std::vector<float> &vertices, std:
         {
             int i0, i1, i2;
             iss >> i0 >> i1 >> i2;
+            // 索引从 1 开始，不是从 0 开始。索引 1 代表文件中第一个出现的 v 行。
             faces.push_back(glm::ivec3(i0 - 1, i1 - 1, i2 - 1));
         }
     }
@@ -381,16 +388,19 @@ bool loadOBJ(const std::string &relativePath, std::vector<float> &vertices, std:
     unsigned int idx = 0;
     for (auto &face : faces)
     {
+        // 面的三个点
         glm::vec3 &p0 = positions[face.x];
         glm::vec3 &p1 = positions[face.y];
         glm::vec3 &p2 = positions[face.z];
 
+        // 两两相乘，得到法线
         glm::vec3 normal = glm::normalize(glm::cross(p1 - p0, p2 - p0));
         if (std::isnan(normal.x))
         {
             normal = glm::vec3(0.0f, 1.0f, 0.0f);
         }
 
+        // 交叉数组，顶点和法线，每个顶点6个float，3个float是位置，3个float是法线，
         float verts[] = {
             p0.x, p0.y, p0.z, normal.x, normal.y, normal.z,
             p1.x, p1.y, p1.z, normal.x, normal.y, normal.z,
