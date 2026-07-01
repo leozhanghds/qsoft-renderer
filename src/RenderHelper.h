@@ -28,13 +28,13 @@ float calculateFrontFace2D(glm::vec2 v0, glm::vec2 v1, glm::vec2 v2)
 }
 
 // 边界函数法​​（vec2 叉乘计算的是平行四边形的面积）
-float edgeFunc(glm::vec2 a, glm::vec2 b, int x, int y)
+float edgeFunc(glm::vec2 a, glm::vec2 b, float x, float y)
 {
     return (b.x - a.x) * (y - a.y) - (b.y - a.y) * (x - a.x);
 }
 
 // 重心坐标法​
-glm::vec3 barycentric(glm::vec2 v0, glm::vec2 v1, glm::vec2 v2, int x, int y)
+glm::vec3 barycentric(glm::vec2 v0, glm::vec2 v1, glm::vec2 v2, float x, float y)
 {
     float area = edgeFunc(v0, v1, v2.x, v2.y);
     float w0 = edgeFunc(v1, v2, x, y) / area;
@@ -87,11 +87,11 @@ void calculateBoundingBox(const glm::vec2 &v0, const glm::vec2 &v1, const glm::v
     float fminY = std::min({v0.y, v1.y, v2.y});
     float fmaxY = std::max({v0.y, v1.y, v2.y});
 
-    // 转换为整数并夹紧到屏幕范围
-    minX = static_cast<int>(std::floor(fminX));
-    maxX = static_cast<int>(std::ceil(fmaxX));
-    minY = static_cast<int>(std::floor(fminY));
-    maxY = static_cast<int>(std::ceil(fmaxY));
+    // 转换为整数并各方向扩 1 像素，消除共享边浮点缝隙
+    minX = static_cast<int>(std::floor(fminX)) - 1;
+    maxX = static_cast<int>(std::ceil(fmaxX)) + 1;
+    minY = static_cast<int>(std::floor(fminY)) - 1;
+    maxY = static_cast<int>(std::ceil(fmaxY)) + 1;
 
     // 确保在屏幕范围内
     minX = std::max(0, minX);
