@@ -103,17 +103,19 @@ MainWindow::MainWindow(QWidget *parent)
     }
 
     // 设置相机回调
-    _render->getCamera()->setUpdateCallback([this](std::shared_ptr<Camera> camera){
+    if(1){
+        _render->getCamera()->setUpdateCallback([this](std::shared_ptr<Camera> camera)
+                                                {
         glm::vec3 eye, center, up;
         camera->getViewMatrix(eye, center, up);
 
-        float radius = 6.0f;
+        float radius = 12.0f;
         float angularSpeed = 0.001f;  // rad/ms
         float camX = sin(camera->getRenderTime() * angularSpeed) * radius;
         float camZ = cos(camera->getRenderTime() * angularSpeed) * radius;
-        eye = glm::vec3(camX, 5.0f, camZ); // 周期运动
-        camera->setViewMatrix(eye, center, up); 
-    });
+        eye = glm::vec3(camX, 2.0f, camZ); // 周期运动
+        camera->setViewMatrix(eye, center, up); });
+    }
 }
 
 MainWindow::~MainWindow()

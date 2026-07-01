@@ -87,11 +87,11 @@ void calculateBoundingBox(const glm::vec2 &v0, const glm::vec2 &v1, const glm::v
     float fminY = std::min({v0.y, v1.y, v2.y});
     float fmaxY = std::max({v0.y, v1.y, v2.y});
 
-    // 转换为整数并各方向扩 1 像素，消除共享边浮点缝隙
-    minX = static_cast<int>(std::floor(fminX)) - 1;
-    maxX = static_cast<int>(std::ceil(fmaxX)) + 1;
-    minY = static_cast<int>(std::floor(fminY)) - 1;
-    maxY = static_cast<int>(std::ceil(fmaxY)) + 1;
+    // 转换为整数并夹紧到屏幕范围
+    minX = static_cast<int>(std::floor(fminX));
+    maxX = static_cast<int>(std::ceil(fmaxX));
+    minY = static_cast<int>(std::floor(fminY));
+    maxY = static_cast<int>(std::ceil(fmaxY));
 
     // 确保在屏幕范围内
     minX = std::max(0, minX);
