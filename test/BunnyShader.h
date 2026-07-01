@@ -22,7 +22,12 @@ inline void BunnyShader::vertexShader(glm::vec4 &gl_Position)
     glm::mat4 vp = getUniform<glm::mat4>("viewProjectionMatrix");
     gl_Position = vp * model * glm::vec4(pos, 1.0f);
 
-    vlayoutOut(0, Interpolation::Flat, normal);
+    // 法线矩阵 = model 左上 3×3 的逆转置，将法线从模型空间变换到世界空间
+    glm::mat3 normalMatrix = glm::mat3(glm::transpose(glm::inverse(model)));
+    glm::vec3 worldNormal = glm::normalize(normalMatrix * normal);
+
+    //vlayoutOut(0, Interpolation::Flat, normal);
+    vlayoutOut(0, Interpolation::Flat, worldNormal);
 }
 
 inline void BunnyShader::fragmentShader(glm::vec4 &gl_FragColor)
