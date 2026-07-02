@@ -22,6 +22,7 @@ struct ClipVertex
     std::array<float, MAX_VERTEX_OUTPUT_MEMORY_SIZE> attrs;
 };
 
+// 判断点坐标是否超出裁剪空间
 inline float clipDistance(const glm::vec4 &v, int plane)
 {
     // 齐次坐标裁剪一共六个面，每个面的方程如下：
@@ -57,6 +58,7 @@ inline ClipVertex lerpClipVertex(const ClipVertex &a, const ClipVertex &b, float
     return out;
 }
 
+// 输入src的三个顶点，输出dst的裁剪后的顶点，返回裁剪后的顶点数量
 inline int clipPolygonAgainstPlane(const ClipVertex *input, int inputCount, ClipVertex *output, int plane)
 {
     int outCount = 0;
@@ -323,6 +325,8 @@ void Render::drawScene(FrameBuffer &frameBuffer)
             //       转化为“线性不等式 vs 线段”的四维代数问题，
             //       判断更简单，插值更安全，代码也更统一。
             constexpr int MAX_CLIP_VERTS = 9;
+
+            // 建立两个缓冲区，src是输入多边形顶点，dst是裁剪后的多边形顶点
             ClipVertex clipBuf[2][MAX_CLIP_VERTS];
             int polyCount = 3;
             ClipVertex *polyResult = clipBuf[0];
@@ -334,7 +338,7 @@ void Render::drawScene(FrameBuffer &frameBuffer)
             clipBuf[0][2].position = tri._position[2];
             std::memcpy(clipBuf[0][2].attrs.data(), vsOutAttr3.data(), sizeof(float) * MAX_VERTEX_OUTPUT_MEMORY_SIZE);
 
-            // 6个面三个点，先快速判断是否需要裁剪，避免后续的复杂计算
+            // 6个面三个点，判断点是不是已经不在裁剪空间内了
             bool needsClipping = false;
             for (int p = 0; p < 6 && !needsClipping; p++)
             {
@@ -351,6 +355,9 @@ void Render::drawScene(FrameBuffer &frameBuffer)
             // 需要裁剪的
             if (needsClipping)
             {
+                // 先用原始多边形顶点裁剪，输出裁剪后的多边形顶点 clipBuf[0], clipBuf[1-0]
+                // src与dst交换位置，等同于将clipBuf[1-0]作为新的src，继续裁剪
+                // 直到6个面都裁剪完毕，判断输出的顶点数量
                 int src = 0;
                 for (int plane = 0; plane < 6; plane++)
                 {
@@ -360,6 +367,7 @@ void Render::drawScene(FrameBuffer &frameBuffer)
                         break;
                     src = dst;
                 }
+
                 if (polyCount < 3)
                     continue;
                 polyResult = clipBuf[src];

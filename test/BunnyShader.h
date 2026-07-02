@@ -130,8 +130,8 @@ inline void BunnyShader::fragmentShader(glm::vec4 &gl_FragColor)
     if (1)
     {
         // 5. 组合光照：环境光 + 漫反射 + 镜面反射
-        glm::vec3 result = ambient + diffuse + specular;
-        //glm::vec3 result = diffuse + specular;
+        //glm::vec3 result = ambient + diffuse + specular;
+        glm::vec3 result = ambient + diffuse;// + specular;
         gl_FragColor = glm::vec4(result, 1.0f);
         return;
     }
