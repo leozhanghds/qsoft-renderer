@@ -13,6 +13,8 @@
 #include "Shader.h"
 #include "ColorBlend.h"
 
+#include <glm/glm.hpp>
+
 #include "render_export.h"
 
 static std::atomic<uint32_t> atomic_counter = 0;
@@ -52,6 +54,21 @@ public:
 
     // 着色器
     void setShader(std::shared_ptr<Shader> shader);
+
+    // model matrix
+    void setModelMatrix(const glm::mat4 &modelMatrix) { _modelMatrix = modelMatrix; }
+    const glm::mat4 &getModelMatrix() const { return _modelMatrix; }
+
+    // 选中状态
+    bool isSelected() const { return _isSelected; }
+    void setSelected(bool selected) { _isSelected = selected; }
+
+    /// 沿法线方向膨胀/恢复顶点（法线固定为 stride 的最后 3 个 float）
+    void applyVertexExpansion(const std::vector<float> &originalVertexArray, float amount);
+    void restoreVertexArray(const std::vector<float> &originalVertexArray);
+
+    // ID
+    uint32_t getId() const { return _id; }
 
     /////////////////////////////////////////////////////////////////////
 
@@ -101,6 +118,12 @@ private:
 
     // 步长
     int _stride{0};
+
+    // model matrix
+    glm::mat4 _modelMatrix{1.0f};
+
+    // 选中状态
+    bool _isSelected{false};
 
     uint32_t _id;
 };

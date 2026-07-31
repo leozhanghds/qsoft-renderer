@@ -19,15 +19,19 @@ public:
     explicit RenderWidget(std::unique_ptr<DoubleBuffer>& buffer);
     virtual ~RenderWidget();
 
+    void setRender(Render* render) { _render = render; }
+
 protected:
     void paintEvent(QPaintEvent* event) override;
-        
+
     void mousePressEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
 
 private:
     QPoint _lastMousePos;
-    QImage _displayImage;  
+    QImage _displayImage;
 
     QTimer* _renderTimer{nullptr};
+    Render* _render{nullptr};
 };

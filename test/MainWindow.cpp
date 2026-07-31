@@ -50,6 +50,7 @@ MainWindow::MainWindow(QWidget *parent)
     _render = std::make_unique<Render>(_renderBuffer);
     _renderThread = std::make_unique<RenderThread>(_render);
     _renderWidget = std::make_unique<RenderWidget>(_renderBuffer);
+    _renderWidget->setRender(_render.get());
 
     _renderThread->start();
 
@@ -181,7 +182,7 @@ void MainWindow::addBunnyLayer()
         float scale = 35.0f;
         glm::mat4 modelMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(scale));
         modelMatrix = glm::translate(modelMatrix, -center);
-        shader->setUniform("modelMatrix", modelMatrix);
+        _bunnyNode->setModelMatrix(modelMatrix);
         shader->setUniform("lightPos", glm::vec3(5.0f, 5.0f, -5.0f));
 
         _bunnyNode->setShader(shader);

@@ -4,23 +4,26 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
+#include <glm/geometric.hpp>
 
 #include <cmath>
 #include <algorithm>
 
+#ifndef M_PI
 #define M_PI 3.1415926
+#endif
 
-double degrees_to_radians(double degrees)
+inline double degrees_to_radians(double degrees)
 {
     return degrees * (M_PI / 180.0);
 }
 
-double radians_to_degrees(double radians)
+inline double radians_to_degrees(double radians)
 {
     return radians * (180.0 / M_PI);
 }
 
-float calculateFrontFace2D(glm::vec2 v0, glm::vec2 v1, glm::vec2 v2)
+inline float calculateFrontFace2D(glm::vec2 v0, glm::vec2 v1, glm::vec2 v2)
 {
     auto n = v1 - v0;
     auto m = v2 - v0;
@@ -28,13 +31,13 @@ float calculateFrontFace2D(glm::vec2 v0, glm::vec2 v1, glm::vec2 v2)
 }
 
 // 边界函数法​​（vec2 叉乘计算的是平行四边形的面积）
-float edgeFunc(glm::vec2 a, glm::vec2 b, float x, float y)
+inline float edgeFunc(glm::vec2 a, glm::vec2 b, float x, float y)
 {
     return (b.x - a.x) * (y - a.y) - (b.y - a.y) * (x - a.x);
 }
 
 // 重心坐标法​
-glm::vec3 barycentric(glm::vec2 v0, glm::vec2 v1, glm::vec2 v2, float x, float y)
+inline glm::vec3 barycentric(glm::vec2 v0, glm::vec2 v1, glm::vec2 v2, float x, float y)
 {
     float area = edgeFunc(v0, v1, v2.x, v2.y);
     float w0 = edgeFunc(v1, v2, x, y) / area;
@@ -44,7 +47,7 @@ glm::vec3 barycentric(glm::vec2 v0, glm::vec2 v1, glm::vec2 v2, float x, float y
 }
 
 // 等价于barycentric
-glm::vec3 calculateBarycentric(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 p)
+inline glm::vec3 calculateBarycentric(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 p)
 {
     // 计算三角形面积（使用叉积）
     glm::vec2 ab = b - a;
@@ -75,7 +78,7 @@ glm::vec3 calculateBarycentric(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 
     return glm::vec3(alpha, beta, gamma);
 }
 
-void calculateBoundingBox(const glm::vec2 &v0, const glm::vec2 &v1, const glm::vec2 &v2,
+inline void calculateBoundingBox(const glm::vec2 &v0, const glm::vec2 &v1, const glm::vec2 &v2,
                           int &minX, int &maxX, int &minY, int &maxY,
                           int width, int height)
 {
@@ -98,6 +101,49 @@ void calculateBoundingBox(const glm::vec2 &v0, const glm::vec2 &v1, const glm::v
     maxX = std::min(width - 1, maxX);
     minY = std::max(0, minY);
     maxY = std::min(height - 1, maxY);
+}
+
+// ============================================================
+// 射线-三角形相交（Möller-Trumbore 算法）
+// ============================================================
+
+struct Ray
+{
+    glm::vec3 origin;
+    glm::vec3 direction;
+};
+
+/// 返回 true 如果射线与三角形相交
+/// @param orig     射线起点
+/// @param dir      射线方向（需归一化）
+/// @param v0,v1,v2 三角形三个顶点
+/// @param t        输出：交点距离 orig + t * dir
+inline bool rayTriangleIntersect(const glm::vec3 &orig, const glm::vec3 &dir,
+                                 const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2,
+                                 float &t)
+{
+    constexpr float EPSILON = 1e-6f;
+    glm::vec3 e1 = v1 - v0;
+    glm::vec3 e2 = v2 - v0;
+    glm::vec3 p = glm::cross(dir, e2);
+    float det = glm::dot(e1, p);
+
+    if (std::fabs(det) < EPSILON)
+        return false; // 射线平行于三角形
+
+    float invDet = 1.0f / det;
+    glm::vec3 s = orig - v0;
+    float u = glm::dot(s, p) * invDet;
+    if (u < 0.0f || u > 1.0f)
+        return false;
+
+    glm::vec3 q = glm::cross(s, e1);
+    float v = glm::dot(dir, q) * invDet;
+    if (v < 0.0f || u + v > 1.0f)
+        return false;
+
+    t = glm::dot(e2, q) * invDet;
+    return t > 0.0f;
 }
 
 #endif // RENDER_HELPER_H

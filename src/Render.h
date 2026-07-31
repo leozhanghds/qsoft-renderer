@@ -34,14 +34,20 @@ struct RenderCommand
     enum class Type {
         AddNode,
         RemoveNode,
-        Resize
+        Resize,
+        SelectNode,     // 右键按下：屏幕坐标拾取并选中
+        DeselectNode    // 右键释放：取消选中并恢复顶点
     };
 
     Type type;
     std::shared_ptr<Node> node;
-    
-    int pixelWidth;
-    int pixelHeight;
+
+    int pixelWidth{0};
+    int pixelHeight{0};
+
+    // SelectNode 使用的屏幕坐标
+    int pixelX{0};
+    int pixelY{0};
 };
 
 
@@ -76,6 +82,9 @@ protected:
     void processCommands();
 
     void drawScene(FrameBuffer& frameBuffer);
+
+    // 光线投射拾取：返回命中的最近节点
+    bool pickNode(int pixelX, int pixelY, std::shared_ptr<Node> &outNode, float &outT);
 public:
     int _width;
     int _height;
@@ -105,6 +114,13 @@ private:
     // 节点
     std::vector<std::shared_ptr<Node>> _nodes{};
     std::queue<RenderCommand> _commands{};
+
+    // 选中状态（仅渲染线程访问）
+    std::shared_ptr<Node> _selectedNode{nullptr};
+    std::vector<float> _selectionVertexArray{}; // 选中节点的原始顶点快照
+    float _expansionAmount{0.0f};
+    bool  _expansionActive{false};
+    static constexpr float MaxExpansion = 0.10f;
 
     std::mutex _cmdMutex;
 };

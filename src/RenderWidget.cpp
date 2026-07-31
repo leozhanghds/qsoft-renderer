@@ -44,20 +44,29 @@ void RenderWidget::paintEvent(QPaintEvent *event)
 
 void RenderWidget::mousePressEvent(QMouseEvent *event)
 {
-    return;
-    _lastMousePos = event->pos();
+    if (event->button() == Qt::RightButton && _render)
+    {
+        _lastMousePos = event->pos();
+        RenderCommand cmd;
+        cmd.type = RenderCommand::Type::SelectNode;
+        cmd.pixelX = event->pos().x();
+        cmd.pixelY = event->pos().y();
+        _render->submitCommand(std::move(cmd));
+    }
 }
 
 void RenderWidget::mouseMoveEvent(QMouseEvent *event)
 {
-    return;
-    qDebug() << _lastMousePos << event->pos();
+    // 预留：后续可在此处添加拖动逻辑
+    Q_UNUSED(event);
+}
 
-    QPoint delta = event->pos() - _lastMousePos;
-    _lastMousePos = event->pos();
-
-    // 根据偏移量更新相机角度
-    //_renderer.camera.rotate(delta.x(), delta.y());
-
-    update();
+void RenderWidget::mouseReleaseEvent(QMouseEvent *event)
+{
+    if (event->button() == Qt::RightButton && _render)
+    {
+        RenderCommand cmd;
+        cmd.type = RenderCommand::Type::DeselectNode;
+        _render->submitCommand(std::move(cmd));
+    }
 }

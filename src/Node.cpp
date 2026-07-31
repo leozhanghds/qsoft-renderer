@@ -3,6 +3,7 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
+#include <glm/geometric.hpp>
 
 // 交错数组和顶点索引
 void Node::setVertexArray(std::vector<float> &vertexArray, std::vector<unsigned int>& vertexIndexArray)
@@ -33,5 +34,38 @@ void Node::addVertexLayout(int layoutId, int vertexSize,/* int stride,*/ int off
 void Node::setShader(std::shared_ptr<Shader> shader)
 {
     _shader = shader;
+}
+
+void Node::applyVertexExpansion(const std::vector<float> &originalVertexArray, float amount)
+{
+    if (originalVertexArray.size() != _vertexArray.size() || _stride < 6 || amount == 0.0f)
+        return;
+
+    // 法线固定为 stride 的最后 3 个 float
+    const int normalOffset = _stride - 3;
+
+    for (size_t i = 0; i < _vertexArray.size(); i += _stride)
+    {
+        glm::vec3 pos(originalVertexArray[i], originalVertexArray[i + 1], originalVertexArray[i + 2]);
+        glm::vec3 nrm(originalVertexArray[i + normalOffset],
+                      originalVertexArray[i + normalOffset + 1],
+                      originalVertexArray[i + normalOffset + 2]);
+
+        float len = glm::length(nrm);
+        if (len < 1e-6f)
+            continue;
+        nrm /= len;
+        pos += nrm * amount;
+
+        _vertexArray[i]     = pos.x;
+        _vertexArray[i + 1] = pos.y;
+        _vertexArray[i + 2] = pos.z;
+    }
+}
+
+void Node::restoreVertexArray(const std::vector<float> &originalVertexArray)
+{
+    if (originalVertexArray.size() == _vertexArray.size())
+        _vertexArray = originalVertexArray;
 }
 

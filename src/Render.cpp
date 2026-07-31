@@ -120,7 +120,62 @@ void Render::removeNode(std::shared_ptr<Node> node)
     {
         _nodes.erase(it);
     }
+
+    // 如果删除的是当前选中节点，清理选中状态
+    if (node == _selectedNode)
+    {
+        _selectedNode.reset();
+        _selectionVertexArray.clear();
+        _expansionActive = false;
+        _expansionAmount = 0.0f;
+    }
 }
+bool Render::pickNode(int pixelX, int pixelY, std::shared_ptr<Node> &outNode, float &outT)
+{
+    glm::vec3 origin, dir;
+    if (!_camera->unproject(pixelX, pixelY, _width, _height, origin, dir))
+        return false;
+
+    outNode.reset();
+    outT = std::numeric_limits<float>::max();
+    bool hit = false;
+
+    for (const auto &node : _nodes)
+    {
+        const auto &vArray = node->getVertexArray();
+        const auto &indexArray = node->getVertexIndexArray();
+        int stride = node->getStride();
+        if (stride < 3 || indexArray.empty())
+            continue;
+
+        const glm::mat4 &model = node->getModelMatrix();
+
+        for (size_t t = 0; t + 2 < indexArray.size(); t += 3)
+        {
+            // 将顶点从模型空间变换到世界空间
+            auto worldPos = [&](unsigned int vi) {
+                size_t base = static_cast<size_t>(vi) * stride;
+                glm::vec4 local(vArray[base], vArray[base + 1], vArray[base + 2], 1.0f);
+                glm::vec4 world = model * local;
+                return glm::vec3(world);
+            };
+
+            glm::vec3 v0 = worldPos(indexArray[t]);
+            glm::vec3 v1 = worldPos(indexArray[t + 1]);
+            glm::vec3 v2 = worldPos(indexArray[t + 2]);
+
+            float dist;
+            if (rayTriangleIntersect(origin, dir, v0, v1, v2, dist) && dist < outT)
+            {
+                outT = dist;
+                outNode = node;
+                hit = true;
+            }
+        }
+    }
+    return hit;
+}
+
 void Render::resize(int width, int height)
 {
     if (_width != width || _height != height)
@@ -162,6 +217,47 @@ void Render::processCommands()
         case RenderCommand::Type::Resize:
             resize(cmd.pixelWidth, cmd.pixelHeight);
             break;
+        case RenderCommand::Type::SelectNode:
+        {
+            // 先恢复上一个选中节点
+            if (_selectedNode && !_selectionVertexArray.empty())
+                _selectedNode->restoreVertexArray(_selectionVertexArray);
+            _selectedNode.reset();
+            _selectionVertexArray.clear();
+            _expansionActive = false;
+
+            // 执行光线投射
+            std::shared_ptr<Node> picked;
+            float t = 0.0f;
+            if (pickNode(cmd.pixelX, cmd.pixelY, picked, t) && picked)
+            {
+                _selectedNode = picked;
+                _selectionVertexArray = picked->getVertexArray(); // 快照原始顶点
+
+                // 根据 model matrix 的缩放因子补偿膨胀量
+                // cube scale=1, 膨胀 0.10 → 10% 视觉膨胀
+                // bunny scale=35, 膨胀 0.10/35 ≈ 0.003 → 同等视觉膨胀
+                float modelScale = glm::length(glm::vec3(picked->getModelMatrix()[0]));
+                _expansionAmount = MaxExpansion / std::max(modelScale, 1.0f);
+
+                _expansionActive = true;
+                _selectedNode->setSelected(true);
+                _selectedNode->applyVertexExpansion(_selectionVertexArray, _expansionAmount);
+            }
+            break;
+        }
+        case RenderCommand::Type::DeselectNode:
+        {
+            _expansionActive = false;
+            if (_selectedNode && !_selectionVertexArray.empty())
+                _selectedNode->restoreVertexArray(_selectionVertexArray);
+            if (_selectedNode)
+                _selectedNode->setSelected(false);
+            _selectedNode.reset();
+            _selectionVertexArray.clear();
+            _expansionAmount = 0.0f;
+            break;
+        }
         default:
             break;
         }
@@ -231,9 +327,6 @@ void Render::drawScene(FrameBuffer &frameBuffer)
     // 相机回调
     _camera->update(_lastFrameTime, _renderTime, _renderCount);
 
-    // 构建矩阵
-    auto modelMatrix = glm::mat4x4(1.0);
-
     // 获取视图矩阵
     glm::vec3 eye, center, up;
     glm::mat4 viewMatrix = _camera->getViewMatrix(eye, center, up);
@@ -243,7 +336,6 @@ void Render::drawScene(FrameBuffer &frameBuffer)
     glm::mat4 projectionMatrix = _camera->getProjectionMatrix(fov, aspect, near, far);
 
     glm::mat4 viewProjectionMatrix = projectionMatrix * viewMatrix;
-    glm::mat4 viewProjectionModelMatrix = viewProjectionMatrix * modelMatrix; // projectionMatrix * viewMatrix * modelMatrix;
 
     // 记录已处理过的图层顶点数量
     size_t processNodeVertexSize = 0;
@@ -260,7 +352,13 @@ void Render::drawScene(FrameBuffer &frameBuffer)
         shader->setUniform("viewMatrix", std::any(viewMatrix));
         shader->setUniform("projectionMatrix", std::any(projectionMatrix));
         shader->setUniform("viewProjectionMatrix", std::any(viewProjectionMatrix));
+
+        // 每节点独立的 model matrix
+        const glm::mat4 &modelMatrix = node->getModelMatrix();
+        glm::mat4 viewProjectionModelMatrix = viewProjectionMatrix * modelMatrix;
         shader->setUniform("viewProjectionModelMatrix", std::any(viewProjectionModelMatrix));
+        shader->setUniform("modelMatrix", std::any(modelMatrix));
+
         shader->setUniform("viewPos", eye);
 
         auto &vertexArray = node->getVertexArray();
