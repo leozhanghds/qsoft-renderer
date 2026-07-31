@@ -57,8 +57,14 @@ void RenderWidget::mousePressEvent(QMouseEvent *event)
 
 void RenderWidget::mouseMoveEvent(QMouseEvent *event)
 {
-    // 预留：后续可在此处添加拖动逻辑
-    Q_UNUSED(event);
+    if (_render && (event->buttons() & Qt::RightButton))
+    {
+        RenderCommand cmd;
+        cmd.type = RenderCommand::Type::DragNode;
+        cmd.pixelX = event->pos().x();
+        cmd.pixelY = event->pos().y();
+        _render->submitCommand(std::move(cmd));
+    }
 }
 
 void RenderWidget::mouseReleaseEvent(QMouseEvent *event)

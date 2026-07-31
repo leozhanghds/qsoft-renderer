@@ -232,18 +232,55 @@ void Render::processCommands()
             if (pickNode(cmd.pixelX, cmd.pixelY, picked, t) && picked)
             {
                 _selectedNode = picked;
-                _selectionVertexArray = picked->getVertexArray(); // 快照原始顶点
+                _selectionVertexArray = picked->getVertexArray();
 
                 // 根据 model matrix 的缩放因子补偿膨胀量
-                // cube scale=1, 膨胀 0.10 → 10% 视觉膨胀
-                // bunny scale=35, 膨胀 0.10/35 ≈ 0.003 → 同等视觉膨胀
                 float modelScale = glm::length(glm::vec3(picked->getModelMatrix()[0]));
                 _expansionAmount = MaxExpansion / std::max(modelScale, 1.0f);
 
                 _expansionActive = true;
                 _selectedNode->setSelected(true);
                 _selectedNode->applyVertexExpansion(_selectionVertexArray, _expansionAmount);
+
+                // 保存拖拽起始信息
+                _dragLastScreenX = cmd.pixelX;
+                _dragLastScreenY = cmd.pixelY;
             }
+            break;
+        }
+        case RenderCommand::Type::DragNode:
+        {
+            if (!_selectedNode || !_expansionActive)
+                break;
+
+            // 获取相机参数
+            glm::vec3 eye, center, up;
+            _camera->getViewMatrix(eye, center, up);
+            float fov, aspect, nearCam, farCam;
+            _camera->getProjectionMatrix(fov, aspect, nearCam, farCam);
+
+            // 相机方向向量
+            glm::vec3 forward = glm::normalize(center - eye);
+            glm::vec3 camRight = glm::normalize(glm::cross(forward, up));
+            glm::vec3 camUp    = glm::cross(camRight, forward);
+
+            // 相机到视点距离 → 该深度处每个像素对应多少世界单位
+            float d = glm::distance(eye, center);
+            float frustumHeight = 2.0f * d * tan(glm::radians(fov) * 0.5f);
+            float worldPerPixel = frustumHeight / _height;
+
+            // 屏幕像素增量 → 世界空间平移量
+            float dX = static_cast<float>(cmd.pixelX - _dragLastScreenX);
+            float dY = static_cast<float>(cmd.pixelY - _dragLastScreenY);
+            glm::vec3 worldDelta = camRight * (dX * worldPerPixel)
+                                 + camUp    * (-dY * worldPerPixel); // 屏幕Y向下
+
+            // 应用到节点的 model matrix
+            _selectedNode->setModelMatrix(
+                glm::translate(_selectedNode->getModelMatrix(), worldDelta));
+
+            _dragLastScreenX = cmd.pixelX;
+            _dragLastScreenY = cmd.pixelY;
             break;
         }
         case RenderCommand::Type::DeselectNode:

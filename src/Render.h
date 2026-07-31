@@ -36,7 +36,8 @@ struct RenderCommand
         RemoveNode,
         Resize,
         SelectNode,     // 右键按下：屏幕坐标拾取并选中
-        DeselectNode    // 右键释放：取消选中并恢复顶点
+        DeselectNode,   // 右键释放：取消选中并恢复顶点
+        DragNode        // 右键拖动：平移选中节点
     };
 
     Type type;
@@ -121,6 +122,10 @@ private:
     float _expansionAmount{0.0f};
     bool  _expansionActive{false};
     static constexpr float MaxExpansion = 0.10f;
+
+    // 拖拽平移状态
+    int _dragLastScreenX{0};
+    int _dragLastScreenY{0};
 
     std::mutex _cmdMutex;
 };
