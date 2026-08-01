@@ -113,11 +113,13 @@ struct Ray
     glm::vec3 direction;
 };
 
+// Möller–Trumbore算法 https://zhuanlan.zhihu.com/p/19176879229
+// 给定一条射线 R(t)=O+td 和一个三角形（顶点为V0​、V1​、V2​），判断射线是否与三角形相交。如果相交，返回交点的位置t 
 /// 返回 true 如果射线与三角形相交
-/// @param orig     射线起点
-/// @param dir      射线方向（需归一化）
-/// @param v0,v1,v2 三角形三个顶点
-/// @param t        输出：交点距离 orig + t * dir
+/// orig     射线起点
+/// dir      射线方向（需归一化）
+/// v0,v1,v2 三角形三个顶点
+/// t        输出：交点距离 orig + t * dir
 inline bool rayTriangleIntersect(const glm::vec3 &orig, const glm::vec3 &dir,
                                  const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2,
                                  float &t)

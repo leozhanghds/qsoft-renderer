@@ -14,6 +14,7 @@ class Texture;
 class DoubleBuffer;
 class RenderWidget;
 class RenderThread;
+class LightNode;
 
 class MainWindow : public QMainWindow
 {
@@ -27,6 +28,9 @@ public:
     void addBunnyLayer();
     void deleteBunnyLayer();
 
+    void addLightLayer();
+    void deleteLightLayer();
+
 protected:
     void resizeEvent(QResizeEvent *event) override;
 
@@ -35,6 +39,8 @@ private:
     QPushButton* deleteCubeButton{nullptr};
     QPushButton* addBunnyButton{nullptr};
     QPushButton* deleteBunnyButton{nullptr};
+    QPushButton* addLightButton{nullptr};
+    QPushButton* deleteLightButton{nullptr};
     
     std::unique_ptr<Render> _render{nullptr};
     std::unique_ptr<RenderWidget> _renderWidget{nullptr};
@@ -44,6 +50,7 @@ private:
     std::shared_ptr<Texture> _sharedTexture{nullptr};
     std::shared_ptr<Node> _cubeNode{nullptr};
     std::shared_ptr<Node> _bunnyNode{nullptr};
+    std::shared_ptr<LightNode> _lightNode{nullptr};
 };
 
 #endif

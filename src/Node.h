@@ -37,6 +37,16 @@ public:
         FrontAndBack,
     };
 
+    // 节点类型：渲染器据此进行通用派发（如光源位置/颜色同步）
+    enum class Type
+    {
+        Mesh,   // 普通网格节点
+        Light,  // 光源节点
+    };
+
+    Type getType() const { return _type; }
+    void setType(Type type) { _type = type; }
+
     Node() :_id(atomic_counter++){}
     virtual ~Node() {}
 
@@ -124,6 +134,9 @@ private:
 
     // 选中状态
     bool _isSelected{false};
+
+    // 节点类型
+    Type _type{Type::Mesh};
 
     uint32_t _id;
 };

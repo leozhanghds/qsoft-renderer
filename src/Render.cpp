@@ -13,6 +13,7 @@
 #include "ColorBlend.h"
 #include "TriangleData.h"
 #include "RenderHelper.h"
+#include "LightNode.h"
 
 #include <QImage>
 
@@ -130,6 +131,43 @@ void Render::removeNode(std::shared_ptr<Node> node)
         _expansionAmount = 0.0f;
     }
 }
+void Render::zoomCamera(float zoomFactor)
+{
+    glm::vec3 eye, center, up;
+    _camera->getViewMatrix(eye, center, up);
+
+    // 计算新的相机位置
+    float dist = glm::distance(eye, center) * std::pow(0.8f, zoomFactor);
+    dist = glm::clamp(dist, 0.5f, 200.0f);
+
+    eye = center + glm::normalize(eye - center) * dist;
+    _camera->setViewMatrix(eye, center, up);
+}
+
+void Render::panCamera(int pixelDeltaX, int pixelDeltaY)
+{
+    glm::vec3 eye, center, up;
+    _camera->getViewMatrix(eye, center, up);
+
+    // 相机基向量
+    glm::vec3 forward = glm::normalize(center - eye);
+    glm::vec3 camRight = glm::normalize(glm::cross(forward, up));
+    glm::vec3 camUp    = glm::cross(camRight, forward);
+
+    // 焦点平面处每个像素对应的世界单位
+    float fov, aspect, near, far;
+    _camera->getProjectionMatrix(fov, aspect, near, far);
+    float d = glm::distance(eye, center);
+    float frustumHeight = 2.0f * d * tan(glm::radians(fov) * 0.5f);
+    float worldPerPixel = frustumHeight / _height;
+
+    // 相机向鼠标拖动的反方向移动，使场景跟随鼠标（屏幕 Y 向下）
+    glm::vec3 pan = camRight * (pixelDeltaX * worldPerPixel)
+                  + camUp    * (-pixelDeltaY * worldPerPixel);
+
+    _camera->setViewMatrix(eye - pan, center - pan, up);
+}
+
 bool Render::pickNode(int pixelX, int pixelY, std::shared_ptr<Node> &outNode, float &outT)
 {
     glm::vec3 origin, dir;
@@ -140,6 +178,7 @@ bool Render::pickNode(int pixelX, int pixelY, std::shared_ptr<Node> &outNode, fl
     outT = std::numeric_limits<float>::max();
     bool hit = false;
 
+    // 遍历场景中所有的节点
     for (const auto &node : _nodes)
     {
         const auto &vArray = node->getVertexArray();
@@ -150,6 +189,7 @@ bool Render::pickNode(int pixelX, int pixelY, std::shared_ptr<Node> &outNode, fl
 
         const glm::mat4 &model = node->getModelMatrix();
 
+        // 每三个顶点组成一个三角形，进行光线-三角形相交测试
         for (size_t t = 0; t + 2 < indexArray.size(); t += 3)
         {
             // 将顶点从模型空间变换到世界空间
@@ -242,6 +282,11 @@ void Render::processCommands()
                 _selectedNode->setSelected(true);
                 _selectedNode->applyVertexExpansion(_selectionVertexArray, _expansionAmount);
 
+                // 记录命中点的世界坐标，作为拖拽的参考平面（过命中点、垂直于视线）
+                glm::vec3 origin, dir;
+                _camera->unproject(cmd.pixelX, cmd.pixelY, _width, _height, origin, dir);
+                _dragHitWorldPos = origin + dir * t;
+
                 // 保存拖拽起始信息
                 _dragLastScreenX = cmd.pixelX;
                 _dragLastScreenY = cmd.pixelY;
@@ -253,32 +298,30 @@ void Render::processCommands()
             if (!_selectedNode || !_expansionActive)
                 break;
 
-            // 获取相机参数
+            // 相机方向向量（参考平面法线）
             glm::vec3 eye, center, up;
             _camera->getViewMatrix(eye, center, up);
-            float fov, aspect, nearCam, farCam;
-            _camera->getProjectionMatrix(fov, aspect, nearCam, farCam);
-
-            // 相机方向向量
             glm::vec3 forward = glm::normalize(center - eye);
-            glm::vec3 camRight = glm::normalize(glm::cross(forward, up));
-            glm::vec3 camUp    = glm::cross(camRight, forward);
 
-            // 相机到视点距离 → 该深度处每个像素对应多少世界单位
-            float d = glm::distance(eye, center);
-            float frustumHeight = 2.0f * d * tan(glm::radians(fov) * 0.5f);
-            float worldPerPixel = frustumHeight / _height;
+            // 当前鼠标位置的反投影射线（射线从近裁剪面到远裁剪面）
+            glm::vec3 origin, dir;
+            _camera->unproject(cmd.pixelX, cmd.pixelY, _width, _height, origin, dir);
 
-            // 屏幕像素增量 → 世界空间平移量
-            float dX = static_cast<float>(cmd.pixelX - _dragLastScreenX);
-            float dY = static_cast<float>(cmd.pixelY - _dragLastScreenY);
-            glm::vec3 worldDelta = camRight * (dX * worldPerPixel)
-                                 + camUp    * (-dY * worldPerPixel); // 屏幕Y向下
+            // 射线与过命中点、垂直于视线的平面求交 → 命中点的新世界坐标
+            float denom = glm::dot(forward, dir);
+            if (std::abs(denom) < 1e-6f)
+                break;
+            float t = glm::dot(forward, _dragHitWorldPos - origin) / denom;
+            glm::vec3 newHitWorld = origin + dir * t;
+
+            // 世界空间增量 = 命中点随鼠标移动的位移
+            glm::vec3 worldDelta = newHitWorld - _dragHitWorldPos;
 
             // 应用到节点的 model matrix
             _selectedNode->setModelMatrix(
                 glm::translate(_selectedNode->getModelMatrix(), worldDelta));
 
+            _dragHitWorldPos = newHitWorld;
             _dragLastScreenX = cmd.pixelX;
             _dragLastScreenY = cmd.pixelY;
             break;
@@ -295,6 +338,12 @@ void Render::processCommands()
             _expansionAmount = 0.0f;
             break;
         }
+        case RenderCommand::Type::ZoomCamera:
+            zoomCamera(cmd.zoomFactor);
+            break;
+        case RenderCommand::Type::PanCamera:
+            panCamera(cmd.pixelX, cmd.pixelY);
+            break;
         default:
             break;
         }
@@ -374,6 +423,20 @@ void Render::drawScene(FrameBuffer &frameBuffer)
 
     glm::mat4 viewProjectionMatrix = projectionMatrix * viewMatrix;
 
+    // 光源同步：取场景中第一个 Light 节点，位置/颜色写入各着色器的 uniform
+    glm::vec3 lightPos(0.0f);
+    glm::vec3 lightColor(1.0f);
+    bool hasLight = false;
+    for (const auto &node : _nodes)
+    {
+        if (node->getType() != Node::Type::Light)
+            continue;
+        lightPos = glm::vec3(node->getModelMatrix()[3]);
+        lightColor = static_cast<const LightNode *>(node.get())->getLightColor();
+        hasLight = true;
+        break;
+    }
+
     // 记录已处理过的图层顶点数量
     size_t processNodeVertexSize = 0;
 
@@ -397,6 +460,12 @@ void Render::drawScene(FrameBuffer &frameBuffer)
         shader->setUniform("modelMatrix", std::any(modelMatrix));
 
         shader->setUniform("viewPos", eye);
+
+        if (hasLight)
+        {
+            shader->setUniform("lightPos", std::any(lightPos));
+            shader->setUniform("lightColor", std::any(lightColor));
+        }
 
         auto &vertexArray = node->getVertexArray();
         auto &vertexLayouts = node->getVertexLayouts();

@@ -37,7 +37,9 @@ struct RenderCommand
         Resize,
         SelectNode,     // 右键按下：屏幕坐标拾取并选中
         DeselectNode,   // 右键释放：取消选中并恢复顶点
-        DragNode        // 右键拖动：平移选中节点
+        DragNode,       // 右键拖动：平移选中节点
+        ZoomCamera,     // 鼠标滚轮：沿视线方向缩放相机
+        PanCamera       // 左键拖动：平移相机（场景平移）
     };
 
     Type type;
@@ -49,6 +51,9 @@ struct RenderCommand
     // SelectNode 使用的屏幕坐标
     int pixelX{0};
     int pixelY{0};
+
+    // ZoomCamera 使用的缩放格数（滚轮每格=1，正=放大）
+    float zoomFactor{0.0f};
 };
 
 
@@ -79,6 +84,12 @@ protected:
     void removeNode(std::shared_ptr<Node> node);
 
     void resize(int width, int height);
+
+    // 沿视线方向缩放相机（正值放大，负值缩小）
+    void zoomCamera(float zoomFactor);
+
+    // 在视平面内平移相机（pixelDeltaX/Y 为鼠标屏幕像素增量）
+    void panCamera(int pixelDeltaX, int pixelDeltaY);
 
     void processCommands();
 
@@ -126,6 +137,7 @@ private:
     // 拖拽平移状态
     int _dragLastScreenX{0};
     int _dragLastScreenY{0};
+    glm::vec3 _dragHitWorldPos{0.0f}; // 选中命中点的世界坐标，作为拖拽参考平面
 
     std::mutex _cmdMutex;
 };

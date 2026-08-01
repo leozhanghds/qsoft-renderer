@@ -65,8 +65,9 @@ inline void BunnyShader::fragmentShader(glm::vec4 &gl_FragColor)
     }
 
     // ---- 以下分支需要光照向量 ----
-    glm::vec3 lightPos = getUniform<glm::vec3>("lightPos"); // light
-    glm::vec3 viewPos = getUniform<glm::vec3>("viewPos");   // eye
+    glm::vec3 lightPos = getUniform<glm::vec3>("lightPos");   // light
+    glm::vec3 viewPos = getUniform<glm::vec3>("viewPos");     // eye
+    glm::vec3 lightColor = getUniform<glm::vec3>("lightColor"); // 光源颜色（默认白）
     glm::vec3 fragPos(worldPos);
 
     glm::vec3 lightDir = glm::normalize(lightPos - fragPos);
@@ -84,7 +85,7 @@ inline void BunnyShader::fragmentShader(glm::vec4 &gl_FragColor)
 
     // 环境光分量
     float ambientStrength = 0.4f;
-    glm::vec3 ambient = ambientStrength * lightAmbient * objectColor;
+    glm::vec3 ambient = ambientStrength * lightAmbient * lightColor * objectColor;
 
     if (0)
     {
@@ -95,7 +96,7 @@ inline void BunnyShader::fragmentShader(glm::vec4 &gl_FragColor)
 
     // 漫反射分量 (Lambert)
     float diff = glm::max(glm::dot(normal, lightDir), 0.0f);
-    glm::vec3 diffuse = diff * lightDiffuse * objectColor;
+    glm::vec3 diffuse = diff * lightDiffuse * lightColor * objectColor;
 
     if (0)
     {
@@ -118,7 +119,7 @@ inline void BunnyShader::fragmentShader(glm::vec4 &gl_FragColor)
     // 镜面反射分量 (Blinn-Phong)
     //float spec = glm::pow(glm::max(glm::dot(normal, halfwayDir), 0.0f), shininess);
     float spec = glm::pow(glm::clamp(glm::dot(normal, halfwayDir), 0.0f, 1.0f), shininess);
-    glm::vec3 specular = spec * lightSpecular;
+    glm::vec3 specular = spec * lightSpecular * lightColor;
 
     if (0)
     {

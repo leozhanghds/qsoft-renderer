@@ -5,6 +5,7 @@
 
 #include <memory>
 #include <functional>
+#include <iostream>
 
 #include <glm/glm.hpp>
 #include <glm/ext/matrix_transform.hpp>
@@ -69,7 +70,7 @@ public:
     }
 
     /// 屏幕坐标 → 世界空间射线
-    /// 视口变换的逆运算，与 drawScene 中的 viewport transform 保持一致
+    /// 视口变换的逆运算
     bool unproject(int screenX, int screenY, int width, int height,
                    glm::vec3 &origin, glm::vec3 &direction) const
     {
@@ -84,13 +85,18 @@ public:
 
         glm::mat4 invVP = glm::inverse(_projectionMatrix * _viewMatrix);
 
-        // NDC 近平面 z = -1，远平面 z = 1（与深度映射 depth = ndcZ * 0.5 + 0.5 一致）
+        // NDC 近平面 z = -1，远平面 z = 1
         glm::vec4 nearNDC(ndcX, ndcY, -1.0f, 1.0f);
         glm::vec4 farNDC(ndcX, ndcY, 1.0f, 1.0f);
 
+        /////////////////////// 透视矩阵必须除以 w 才能得到正确的世界坐标，正交投影可能不需要
+        // 近裁剪面的nearWorld.w = 1, 可能与投影矩阵第四行是（0,0,-ze, 0）有关，待定
         glm::vec4 nearWorld = invVP * nearNDC;
+        //std::cout << "nearWorld: " << nearWorld.w << std::endl;
         nearWorld /= nearWorld.w;
+
         glm::vec4 farWorld = invVP * farNDC;
+        //std::cout << "farWorld: " << farWorld.w << std::endl;
         farWorld /= farWorld.w;
 
         origin = glm::vec3(nearWorld);
@@ -100,7 +106,7 @@ public:
 
     void update(float lastFrameTime, float renderTime, size_t renderCount)
     {
-        _lastFrameTime = _lastFrameTime;
+        _lastFrameTime = lastFrameTime;
         _renderTime = renderTime;
         _renderCount = renderCount;
 

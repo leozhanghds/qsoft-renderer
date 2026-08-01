@@ -14,6 +14,7 @@
 
 #include "SquareCubeShader.h"
 #include "BunnyShader.h"
+#include "LightNode.h"
 
 #include <iostream>
 #include <fstream>
@@ -46,6 +47,12 @@ MainWindow::MainWindow(QWidget *parent)
     deleteBunnyButton = new QPushButton("delete bunny", this);
     connect(deleteBunnyButton, &QPushButton::clicked, this, &MainWindow::deleteBunnyLayer);
 
+    addLightButton = new QPushButton("add light", this);
+    connect(addLightButton, &QPushButton::clicked, this, &MainWindow::addLightLayer);
+
+    deleteLightButton = new QPushButton("delete light", this);
+    connect(deleteLightButton, &QPushButton::clicked, this, &MainWindow::deleteLightLayer);
+
     _renderBuffer = std::make_unique<DoubleBuffer>();
     _render = std::make_unique<Render>(_renderBuffer);
     _renderThread = std::make_unique<RenderThread>(_render);
@@ -66,6 +73,8 @@ MainWindow::MainWindow(QWidget *parent)
     buttonLayout->addWidget(deleteCubeButton);
     buttonLayout->addWidget(addBunnyButton);
     buttonLayout->addWidget(deleteBunnyButton);
+    buttonLayout->addWidget(addLightButton);
+    buttonLayout->addWidget(deleteLightButton);
     buttonLayout->addStretch();
 
     this->setCentralWidget(_renderWidget.get());
@@ -104,7 +113,7 @@ MainWindow::MainWindow(QWidget *parent)
     }
 
     // 设置相机回调
-    if(1){
+    if(0){
         _render->getCamera()->setUpdateCallback([this](std::shared_ptr<Camera> camera)
                                                 {
         glm::vec3 eye, center, up;
@@ -183,10 +192,30 @@ void MainWindow::addBunnyLayer()
         glm::mat4 modelMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(scale));
         modelMatrix = glm::translate(modelMatrix, -center);
         _bunnyNode->setModelMatrix(modelMatrix);
-        shader->setUniform("lightPos", glm::vec3(5.0f, 5.0f, -5.0f));
 
         _bunnyNode->setShader(shader);
         _render->submitCommand(RenderCommand(RenderCommand::Type::AddNode, _bunnyNode));
+    }
+}
+
+void MainWindow::addLightLayer()
+{
+    if (!_lightNode)
+    {
+        _lightNode = std::make_shared<LightNode>();
+        _lightNode->setModelMatrix(glm::translate(glm::mat4(1.0f), glm::vec3(5.0f, 5.0f, -5.0f)) *
+                                   glm::scale(glm::mat4(1.0f), glm::vec3(1.5f)));
+
+        _render->submitCommand(RenderCommand(RenderCommand::Type::AddNode, _lightNode));
+    }
+}
+
+void MainWindow::deleteLightLayer()
+{
+    if (_lightNode)
+    {
+        _render->submitCommand(RenderCommand(RenderCommand::Type::RemoveNode, _lightNode));
+        _lightNode.reset();
     }
 }
 
