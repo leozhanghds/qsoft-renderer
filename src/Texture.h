@@ -22,12 +22,17 @@ public:
     };
 
     Texture(const std::string &path);
+
+    // 空纹理（运行时构建，如阴影贴图）
+    Texture(int width, int height);
     virtual ~Texture() = default;
 
     std::shared_ptr<Texture> getSharedPtr()
     {
         return shared_from_this();
     }
+
+    void setPixel(int x, int y, const glm::vec4 &color);
 
     glm::vec4 sample(glm::vec2 uv);
 

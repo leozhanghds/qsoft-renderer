@@ -31,6 +31,12 @@ public:
     void addLightLayer();
     void deleteLightLayer();
 
+    void addFloorLayer();
+    void deleteFloorLayer();
+
+    void generateShadowMap();
+    void toggleShadow();
+
 protected:
     void resizeEvent(QResizeEvent *event) override;
 
@@ -41,6 +47,11 @@ private:
     QPushButton* deleteBunnyButton{nullptr};
     QPushButton* addLightButton{nullptr};
     QPushButton* deleteLightButton{nullptr};
+    QPushButton* addFloorButton{nullptr};
+    QPushButton* deleteFloorButton{nullptr};
+    QPushButton* generateShadowButton{nullptr};
+    QPushButton* applyShadowButton{nullptr};
+    bool _shadowApplied{false};
     
     std::unique_ptr<Render> _render{nullptr};
     std::unique_ptr<RenderWidget> _renderWidget{nullptr};
@@ -50,6 +61,7 @@ private:
     std::shared_ptr<Texture> _sharedTexture{nullptr};
     std::shared_ptr<Node> _cubeNode{nullptr};
     std::shared_ptr<Node> _bunnyNode{nullptr};
+    std::shared_ptr<Node> _floorNode{nullptr};
     std::shared_ptr<LightNode> _lightNode{nullptr};
 };
 

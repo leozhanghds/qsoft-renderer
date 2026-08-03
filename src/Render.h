@@ -39,7 +39,9 @@ struct RenderCommand
         DeselectNode,   // 右键释放：取消选中并恢复顶点
         DragNode,       // 右键拖动：平移选中节点
         ZoomCamera,     // 鼠标滚轮：沿视线方向缩放相机
-        PanCamera       // 左键拖动：平移相机（场景平移）
+        PanCamera,      // 左键拖动：平移相机（场景平移）
+        GenerateShadowMap, // 生成光源视角的深度贴图（阴影贴图）
+        EnableShadow    // 开关阴影：开启后每帧自动重渲阴影贴图
     };
 
     Type type;
@@ -91,6 +93,9 @@ protected:
     // 在视平面内平移相机（pixelDeltaX/Y 为鼠标屏幕像素增量）
     void panCamera(int pixelDeltaX, int pixelDeltaY);
 
+    // 光源视角深度贴图渲染（平行光正交投影，硬阴影）
+    void generateShadowMap();
+
     void processCommands();
 
     void drawScene(FrameBuffer& frameBuffer);
@@ -138,6 +143,14 @@ private:
     int _dragLastScreenX{0};
     int _dragLastScreenY{0};
     glm::vec3 _dragHitWorldPos{0.0f}; // 选中命中点的世界坐标，作为拖拽参考平面
+
+    // 阴影贴图（平行光正交 + 硬阴影 + 固定 bias）
+    std::shared_ptr<Texture> _shadowMap{nullptr};
+    glm::mat4 _lightViewProjection{1.0f};
+    bool _shadowEnabled{false};
+    std::vector<float> _shadowDepthBuffer{};
+    float _shadowBias{0.003f};
+    static constexpr int ShadowMapSize = 1024;
 
     std::mutex _cmdMutex;
 };

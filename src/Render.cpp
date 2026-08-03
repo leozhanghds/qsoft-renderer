@@ -23,6 +23,9 @@ struct ClipVertex
     std::array<float, MAX_VERTEX_OUTPUT_MEMORY_SIZE> attrs;
 };
 
+// 齐次裁剪最多输出顶点数（三角形 → 最多 9 个）
+constexpr int MAX_CLIP_VERTS = 9;
+
 // 判断点坐标是否超出裁剪空间
 inline float clipDistance(const glm::vec4 &v, int plane)
 {
@@ -166,6 +169,213 @@ void Render::panCamera(int pixelDeltaX, int pixelDeltaY)
                   + camUp    * (-pixelDeltaY * worldPerPixel);
 
     _camera->setViewMatrix(eye - pan, center - pan, up);
+}
+
+void Render::generateShadowMap()
+{
+    // 找到光源节点
+    glm::vec3 lightPos(0.0f);
+    bool found = false;
+    for (const auto &node : _nodes)
+    {
+        if (node->getType() == Node::Type::Light)
+        {
+            lightPos = static_cast<const LightNode *>(node.get())->getPosition();
+            found = true;
+            break;
+        }
+    }
+    if (!found)
+        return;
+
+    // 场景世界 AABB
+    bool haveBounds = false;
+    glm::vec3 minB(FLT_MAX);
+    glm::vec3 maxB(-FLT_MAX);
+    for (const auto &node : _nodes)
+    {
+        if (node->getType() != Node::Type::Mesh)
+            continue;
+
+        const auto &vArray = node->getVertexArray();
+        int stride = node->getStride();
+        if (stride < 3)
+            continue;
+
+        const glm::mat4 &model = node->getModelMatrix();
+        for (size_t i = 0; i < vArray.size(); i += stride)
+        {
+            glm::vec4 world = model * glm::vec4(vArray[i], vArray[i + 1], vArray[i + 2], 1.0f);
+            glm::vec3 w(world);
+            minB = glm::min(minB, w);
+            maxB = glm::max(maxB, w);
+            haveBounds = true;
+        }
+    }
+    if (!haveBounds)
+        return;
+
+    glm::vec3 sceneCenter = (minB + maxB) * 0.5f;
+    float sceneRadius = glm::length(maxB - sceneCenter);
+
+    // 平行光：光源看向场景中心，正交投影覆盖场景包围球
+    glm::vec3 lightDir = glm::normalize(sceneCenter - lightPos);
+    glm::vec3 up = std::abs(lightDir.y) < 0.9f ? glm::vec3(0.0f, 1.0f, 0.0f) : glm::vec3(1.0f, 0.0f, 0.0f);
+
+    glm::mat4 lightView = glm::lookAt(lightPos, sceneCenter, up);
+    glm::mat4 lightProj = glm::ortho(-sceneRadius, sceneRadius,
+                                     -sceneRadius, sceneRadius,
+                                     0.1f, 2.0f * sceneRadius + 1.0f);
+    _lightViewProjection = lightProj * lightView;
+
+    // 清空深度缓冲
+    if (_shadowDepthBuffer.size() != (size_t)ShadowMapSize * ShadowMapSize)
+        _shadowDepthBuffer.assign((size_t)ShadowMapSize * ShadowMapSize, FLT_MAX);
+    else
+        std::fill_n(_shadowDepthBuffer.data(), _shadowDepthBuffer.size(), FLT_MAX);
+
+    const int W = ShadowMapSize;
+    const int H = ShadowMapSize;
+
+    // 深度光栅化（无 MSAA、无片元着色器、无颜色）
+    for (const auto &node : _nodes)
+    {
+        if (node->getType() != Node::Type::Mesh)
+            continue;
+        if (!node->getShader())
+            continue;
+
+        const auto &vArray = node->getVertexArray();
+        const auto &idx = node->getVertexIndexArray();
+        int stride = node->getStride();
+        if (stride < 3)
+            continue;
+
+        const glm::mat4 &model = node->getModelMatrix();
+
+        // 顶点 → 光源裁剪空间
+        size_t nv = vArray.size() / stride;
+        std::vector<glm::vec4> lightClip(nv);
+        for (size_t i = 0; i < nv; i++)
+        {
+            size_t base = i * stride;
+            glm::vec4 local(vArray[base], vArray[base + 1], vArray[base + 2], 1.0f);
+            lightClip[i] = _lightViewProjection * model * local;
+        }
+
+        for (size_t t = 0; t + 2 < idx.size(); t += 3)
+        {
+            // 齐次空间视锥裁剪（复用现有工具函数）
+            ClipVertex clipBuf[2][MAX_CLIP_VERTS];
+            ClipVertex src[3];
+            for (int v = 0; v < 3; v++)
+            {
+                std::fill(src[v].attrs.begin(), src[v].attrs.end(), 0.0f);
+            }
+            src[0].position = lightClip[idx[t]];
+            src[1].position = lightClip[idx[t + 1]];
+            src[2].position = lightClip[idx[t + 2]];
+
+            bool needsClipping = false;
+            for (int p = 0; p < 6 && !needsClipping; p++)
+            {
+                for (int v = 0; v < 3; v++)
+                {
+                    if (clipDistance(src[v].position, p) < 0)
+                    {
+                        needsClipping = true;
+                        break;
+                    }
+                }
+            }
+
+            int polyCount = 3;
+            ClipVertex *polyResult = src;
+            if (needsClipping)
+            {
+                std::memcpy(clipBuf[0], src, sizeof(ClipVertex) * 3);
+                int srcIdx = 0;
+                for (int plane = 0; plane < 6; plane++)
+                {
+                    int dst = 1 - srcIdx;
+                    polyCount = clipPolygonAgainstPlane(clipBuf[srcIdx], polyCount, clipBuf[dst], plane);
+                    if (polyCount < 3)
+                        break;
+                    srcIdx = dst;
+                }
+                if (polyCount < 3)
+                    continue;
+                polyResult = clipBuf[srcIdx];
+            }
+
+            for (int ct = 0; ct < polyCount - 2; ct++)
+            {
+                const ClipVertex &cv0 = polyResult[0];
+                const ClipVertex &cv1 = polyResult[ct + 1];
+                const ClipVertex &cv2 = polyResult[ct + 2];
+
+                // 透视除法 → NDC
+                glm::vec3 n0 = glm::vec3(cv0.position) / cv0.position.w;
+                glm::vec3 n1 = glm::vec3(cv1.position) / cv1.position.w;
+                glm::vec3 n2 = glm::vec3(cv2.position) / cv2.position.w;
+
+                // 背面剔除（与主 pass 一致）
+                float front = calculateFrontFace2D(glm::vec2(n0), glm::vec2(n1), glm::vec2(n2));
+                if (front < 0)
+                    continue;
+
+                // 屏幕坐标（y 翻转，与主 pass 一致；阴影贴图 UV 采样时再翻回来）
+                glm::vec2 s0((n0.x + 1) * (W - 1) / 2, (-n0.y + 1) * (H - 1) / 2);
+                glm::vec2 s1((n1.x + 1) * (W - 1) / 2, (-n1.y + 1) * (H - 1) / 2);
+                glm::vec2 s2((n2.x + 1) * (W - 1) / 2, (-n2.y + 1) * (H - 1) / 2);
+
+                int minX, maxX, minY, maxY;
+                calculateBoundingBox(s0, s1, s2, minX, maxX, minY, maxY, W, H);
+
+                float w0_inv = 1.0f / cv0.position.w;
+                float w1_inv = 1.0f / cv1.position.w;
+                float w2_inv = 1.0f / cv2.position.w;
+
+                for (int y = minY; y <= maxY; y++)
+                {
+                    for (int x = minX; x <= maxX; x++)
+                    {
+                        glm::vec3 weights = barycentric(s0, s1, s2, x + 0.5f, y + 0.5f);
+                        if (weights.x < 0 || weights.y < 0 || weights.z < 0)
+                            continue;
+
+                        float invW = weights.x * w0_inv + weights.y * w1_inv + weights.z * w2_inv;
+                        float z_ndc = (weights.x * (n0.z * w0_inv) +
+                                       weights.y * (n1.z * w1_inv) +
+                                       weights.z * (n2.z * w2_inv)) / invW;
+                        float depth = z_ndc * 0.5f + 0.5f;
+                        if (depth < 0.0f || depth > 1.0f)
+                            continue;
+
+                        int pix = y * W + x;
+                        if (depth < _shadowDepthBuffer[pix])
+                            _shadowDepthBuffer[pix] = depth;
+                    }
+                }
+            }
+        }
+    }
+
+    // 打包成深度纹理（全精度 float 存进 vec4，采样取 .r）
+    if (!_shadowMap)
+        _shadowMap = std::make_shared<Texture>(W, H);
+    _shadowMap->setWrapMode(Texture::WrapMode::ClampToEdge, Texture::WrapMode::ClampToEdge);
+
+    for (int y = 0; y < H; y++)
+    {
+        for (int x = 0; x < W; x++)
+        {
+            float d = _shadowDepthBuffer[y * W + x];
+            if (d >= FLT_MAX)
+                d = 1.0f; // 无几何处 → 无遮挡（最远深度）
+            _shadowMap->setPixel(x, y, glm::vec4(d));
+        }
+    }
 }
 
 bool Render::pickNode(int pixelX, int pixelY, std::shared_ptr<Node> &outNode, float &outT)
@@ -344,6 +554,12 @@ void Render::processCommands()
         case RenderCommand::Type::PanCamera:
             panCamera(cmd.pixelX, cmd.pixelY);
             break;
+        case RenderCommand::Type::GenerateShadowMap:
+            generateShadowMap();
+            break;
+        case RenderCommand::Type::EnableShadow:
+            _shadowEnabled = !_shadowEnabled;
+            break;
         default:
             break;
         }
@@ -360,6 +576,12 @@ void Render::renderOneFrame()
     if (_width != frameBuffer.width || _height != frameBuffer.height)
     {
         frameBuffer.resize(_width, _height);
+    }
+
+    // 多道渲染：开启阴影时每帧自动重渲光源深度贴图（pass 1）
+    if (_shadowEnabled)
+    {
+        generateShadowMap();
     }
 
     clearBuffer(frameBuffer, CLEAR_COLOR_BUFFER | CLEAR_DEPTH_BUFFER);
@@ -467,6 +689,19 @@ void Render::drawScene(FrameBuffer &frameBuffer)
             shader->setUniform("lightColor", std::any(lightColor));
         }
 
+        // 阴影贴图注入
+        if (_shadowEnabled && _shadowMap)
+        {
+            shader->addTexture(SHADOW_MAP_TEXTURE_UNIT, _shadowMap);
+            shader->setUniform("lightViewProjectionMatrix", std::any(_lightViewProjection));
+            shader->setUniform("shadowEnabled", std::any(1.0f));
+            shader->setUniform("shadowBias", std::any(_shadowBias));
+        }
+        else
+        {
+            shader->setUniform("shadowEnabled", std::any(0.0f));
+        }
+
         auto &vertexArray = node->getVertexArray();
         auto &vertexLayouts = node->getVertexLayouts();
         auto stride = node->getStride();
@@ -528,7 +763,6 @@ void Render::drawScene(FrameBuffer &frameBuffer)
             // 本质：把裁剪从“固定立方体 vs 三角形”的三维几何问题，
             //       转化为“线性不等式 vs 线段”的四维代数问题，
             //       判断更简单，插值更安全，代码也更统一。
-            constexpr int MAX_CLIP_VERTS = 9;
 
             // 建立两个缓冲区，src是输入多边形顶点，dst是裁剪后的多边形顶点
             ClipVertex clipBuf[2][MAX_CLIP_VERTS];

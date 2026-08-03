@@ -2,6 +2,7 @@
 #define BUNNY_SHADER_H
 
 #include "Shader.h"
+#include "ShadowHelper.h"
 
 class BunnyShader : public Shader
 {
@@ -128,11 +129,14 @@ inline void BunnyShader::fragmentShader(glm::vec4 &gl_FragColor)
         return;
     }
 
+    // 阴影（平行光正交 + 硬阴影 + 固定 bias，逻辑见 ShadowHelper.h）
+    float shadow = computeShadowFactor(*this, fragPos);
+
     if (1)
     {
-        // 5. 组合光照：环境光 + 漫反射 + 镜面反射
+        // 5. 组合光照：环境光不受阴影影响
         //glm::vec3 result = ambient + diffuse + specular;
-        glm::vec3 result = ambient + diffuse;// + specular;
+        glm::vec3 result = ambient + shadow * diffuse;// + specular;
         gl_FragColor = glm::vec4(result, 1.0f);
         return;
     }

@@ -84,6 +84,12 @@
 | **双缓冲** | 基于 `std::atomic` + acquire/release 内存序的**无锁**双缓冲，渲染线程与 UI 线程零竞争 |
 | **命令队列** | `RenderCommand` + `std::queue` + `std::mutex`，支持运行时动态添加/删除渲染节点 |
 | **动态相机** | 支持运行时设置相机回调，Demo 中实现了环绕相机的周期运动 |
+| **相机交互** | 滚轮缩放 (Dolly)、左键拖动平移场景、右键拾取并按**命中点深度平面**精确拖拽对象 |
+| **Blinn-Phong 光照** | 环境/漫反射/镜面反射三分量，半程向量高光 (shininess 可配置)，光源颜色可调 |
+| **光源节点** | `LightNode` 独立节点类型，可右键拖拽移动，位置/颜色每帧同步到各着色器 (`lightPos`/`lightColor`) |
+| **阴影贴图** | 平行光正交投影深度贴图，硬阴影 + 固定 bias；两步手动生成/开启，开启后每帧自动多道重渲 |
+| **节点类型系统** | `Node::Type` (Mesh / Light) 通用派发，渲染器据此识别光源等特殊节点 |
+| **OBJ 模型加载** | 解析 `v`/`f`，面法线生成，顶点展开，模型居中缩放适配场景 |
 
 ---
 
@@ -101,15 +107,18 @@ qsoft-renderer/
 │   ├── RenderHelper.h          # 光栅化数学 — 重心坐标 + 包围盒 + 边缘函数
 │   ├── TriangleData.h          # 三角形数据 — clip/NDC/screen 三组坐标
 │   ├── DoubleBuffer.h          # 无锁双缓冲 — atomic acquire/release
-│   ├── Node.h / Node.cpp       # 渲染节点 — 顶点 + 索引 + 布局 + 着色器
+│   ├── Node.h / Node.cpp       # 渲染节点 — 顶点 + 索引 + 布局 + 着色器 + 类型系统
+│   ├── LightNode.h/.cpp        # 光源节点 — 独立可拖动，位置/颜色同步到着色器
 │   ├── RenderThread.h/.cpp     # 专用渲染线程 — 30fps 循环
 │   └── RenderWidget.h/.cpp     # Qt 显示控件 — 60fps 轮询
 ├── test/                       # 应用入口 + Demo 窗口
 │   ├── main.cpp                # Qt 入口
-│   └── MainWindow.h/.cpp       # 主窗口 — 添加/删除立方体，环绕相机
+│   ├── MainWindow.h/.cpp       # 主窗口 — 添加/删除 立方体/bunny/光源 + 阴影开关按钮
+│   └── BunnyShader.h           # bunny 着色器 — Blinn-Phong 光照 + 阴影采样
 ├── resources/
 │   ├── textures/               # 纹理资源 (container.jpg, wood, brick...)
-│   ├── objects/                # 3D 模型 (vampire, nanosuit, backpack...)
+│   ├── objects/               # 3D 模型 (vampire, nanosuit, backpack...)
+│   ├── obj/                   # bunny.obj — 光照 + 阴影 Demo 模型
 │   └── fonts/                  # TrueType 字体
 ├── include/
 │   ├── glm/                    # OpenGL Mathematics (向量/矩阵数学)
@@ -168,6 +177,11 @@ cmake --build build/x64-release --config Release
 - [x] 纹理映射 (Nearest + Bilinear 采样, 三种 Wrap 模式)
 - [x] 颜色混合 (10 种 OpenGL 混合因子)
 - [x] 无锁双缓冲渲染
+- [x] Blinn-Phong 光照模型 (环境/漫反射/镜面 + 光源颜色)
+- [x] 光源节点 LightNode (独立节点类型，右键拖拽，位置/颜色实时同步)
+- [x] 阴影贴图 (平行光正交 + 硬阴影 + 固定 bias，多道渲染)
+- [x] 相机交互 (滚轮缩放 / 左键平移 / 右键拾取拖拽，命中点深度平面换算)
+- [x] 3D 模型加载 (OBJ)
 
 ## 进行中 / In Progress
 
@@ -175,11 +189,11 @@ cmake --build build/x64-release --config Release
 
 ## 计划中 / Planned
 
-- [ ] Blinn-Phong 光照模型
+- [ ] PCF 软阴影
 - [ ] 法线贴图 (Normal Mapping)
 - [ ] 天空盒 (Skybox)
 - [ ] 纹理 Mipmap
-- [ ] 3D 模型加载 (OBJ / glTF)
+- [ ] 3D 模型加载 (glTF)
 
 ## 不计划实现 / Not Planned
 

@@ -22,6 +22,9 @@ constexpr int MAX_VERTEX_ATTR_DATA_SIZE = sizeof(glm::vec4) / sizeof(float);
 constexpr int MAX_VERTEX_OUTPUT_COMPONENTS = 16;
 constexpr int MAX_VERTEX_OUTPUT_MEMORY_SIZE = MAX_VERTEX_ATTR_DATA_SIZE * MAX_VERTEX_OUTPUT_COMPONENTS;
 
+// 阴影贴图纹理单元（槽位 1，避开 slot 0 的常规贴图）
+constexpr int SHADOW_MAP_TEXTURE_UNIT = 1;
+
 class RENDER_EXPORT Shader : public std::enable_shared_from_this<Shader>
 {
 public:

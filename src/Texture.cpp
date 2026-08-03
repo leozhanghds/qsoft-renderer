@@ -52,6 +52,17 @@ Texture::Texture(const std::string &path)
     stbi_image_free(data);
 }
 
+Texture::Texture(int width, int height)
+    : _width(width), _height(height)
+{
+    _pixels.resize(_width * _height, glm::vec4(0.0f));
+}
+
+void Texture::setPixel(int x, int y, const glm::vec4 &color)
+{
+    _pixels[y * _width + x] = color;
+}
+
 glm::vec4 Texture::sample(glm::vec2 uv)
 {
     //return sample(uv);

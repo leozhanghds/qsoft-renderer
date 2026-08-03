@@ -14,6 +14,7 @@
 
 #include "SquareCubeShader.h"
 #include "BunnyShader.h"
+#include "GroundShader.h"
 #include "LightNode.h"
 
 #include <iostream>
@@ -53,6 +54,18 @@ MainWindow::MainWindow(QWidget *parent)
     deleteLightButton = new QPushButton("delete light", this);
     connect(deleteLightButton, &QPushButton::clicked, this, &MainWindow::deleteLightLayer);
 
+    addFloorButton = new QPushButton("add floor", this);
+    connect(addFloorButton, &QPushButton::clicked, this, &MainWindow::addFloorLayer);
+
+    deleteFloorButton = new QPushButton("delete floor", this);
+    connect(deleteFloorButton, &QPushButton::clicked, this, &MainWindow::deleteFloorLayer);
+
+    generateShadowButton = new QPushButton("generate shadow map", this);
+    connect(generateShadowButton, &QPushButton::clicked, this, &MainWindow::generateShadowMap);
+
+    applyShadowButton = new QPushButton("apply shadow", this);
+    connect(applyShadowButton, &QPushButton::clicked, this, &MainWindow::toggleShadow);
+
     _renderBuffer = std::make_unique<DoubleBuffer>();
     _render = std::make_unique<Render>(_renderBuffer);
     _renderThread = std::make_unique<RenderThread>(_render);
@@ -75,6 +88,10 @@ MainWindow::MainWindow(QWidget *parent)
     buttonLayout->addWidget(deleteBunnyButton);
     buttonLayout->addWidget(addLightButton);
     buttonLayout->addWidget(deleteLightButton);
+    buttonLayout->addWidget(addFloorButton);
+    buttonLayout->addWidget(deleteFloorButton);
+    buttonLayout->addWidget(generateShadowButton);
+    buttonLayout->addWidget(applyShadowButton);
     buttonLayout->addStretch();
 
     this->setCentralWidget(_renderWidget.get());
@@ -217,6 +234,63 @@ void MainWindow::deleteLightLayer()
         _render->submitCommand(RenderCommand(RenderCommand::Type::RemoveNode, _lightNode));
         _lightNode.reset();
     }
+}
+
+void MainWindow::addFloorLayer()
+{
+    if (!_floorNode)
+    {
+        // 地板：x-z 平面（y=0），法线向上，model 下移到兔子脚底下方
+        std::vector<float> vertices;
+        std::vector<unsigned int> indices;
+
+        const float half = 6.0f;
+        const float quad[4][3] = {
+            {-half, 0.0f, -half}, // A
+            {-half, 0.0f,  half}, // B
+            { half, 0.0f,  half}, // C
+            { half, 0.0f, -half}, // D
+        };
+        for (int k = 0; k < 4; k++)
+        {
+            vertices.insert(vertices.end(), {quad[k][0], quad[k][1], quad[k][2], 0.0f, 1.0f, 0.0f});
+        }
+        // 与立方体顶面同向绕序（俯视时正面朝上）
+        indices = {0, 1, 2, 0, 2, 3};
+
+        _floorNode = std::make_shared<Node>();
+        _floorNode->setVertexArray(vertices, indices);
+        _floorNode->addVertexLayout(0, 3, 0); // 位置
+        _floorNode->addVertexLayout(1, 3, 3); // 法线
+        _floorNode->setModelMatrix(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -4.0f, 0.0f)));
+
+        auto shader = std::make_shared<GroundShader>(_floorNode->getLayoutCount());
+        shader->setUniform("groundColor", glm::vec3(0.6f, 0.6f, 0.55f));
+        _floorNode->setShader(shader);
+
+        _render->submitCommand(RenderCommand(RenderCommand::Type::AddNode, _floorNode));
+    }
+}
+
+void MainWindow::deleteFloorLayer()
+{
+    if (_floorNode)
+    {
+        _render->submitCommand(RenderCommand(RenderCommand::Type::RemoveNode, _floorNode));
+        _floorNode.reset();
+    }
+}
+
+void MainWindow::generateShadowMap()
+{
+    _render->submitCommand(RenderCommand(RenderCommand::Type::GenerateShadowMap));
+}
+
+void MainWindow::toggleShadow()
+{
+    _shadowApplied = !_shadowApplied;
+    applyShadowButton->setText(_shadowApplied ? "unapply shadow" : "apply shadow");
+    _render->submitCommand(RenderCommand(RenderCommand::Type::EnableShadow));
 }
 
 void MainWindow::deleteBunnyLayer()
