@@ -221,7 +221,8 @@ void MainWindow::addLightLayer()
     {
         _lightNode = std::make_shared<LightNode>();
         _lightNode->setModelMatrix(glm::translate(glm::mat4(1.0f), glm::vec3(5.0f, 5.0f, -5.0f)) *
-                                   glm::scale(glm::mat4(1.0f), glm::vec3(1.5f)));
+                                   //glm::scale(glm::mat4(1.0f), glm::vec3(1.5f)));
+                                   glm::scale(glm::mat4(1.0f), glm::vec3(0.6f)));
 
         _render->submitCommand(RenderCommand(RenderCommand::Type::AddNode, _lightNode));
     }
